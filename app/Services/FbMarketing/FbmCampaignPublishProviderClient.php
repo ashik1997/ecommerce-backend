@@ -1,0 +1,219 @@
+<?php
+
+namespace App\Services\FbMarketing;
+
+use App\Models\FbMarketing\FbmConnection;
+use App\Support\Security\SecretRedactor;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
+use Throwable;
+
+class FbmCampaignPublishProviderClient
+{
+    public function __construct(
+        protected FbmGraphApiVersionPolicy $versionPolicy,
+        protected FbmApiRequestLogService $apiRequestLogs
+    ) {
+    }
+
+    public function post(FbmConnection $connection, string $edge, array $payload, string $operationKey): array
+    {
+        $version = $this->versionPolicy->resolveAllowed($connection->graph_api_version);
+        $edge = $this->normalizeEdge($edge);
+        $this->assertAllowedEdge($edge);
+        $endpoint = $this->endpoint($version, $edge);
+        $accessToken = trim((string) $connection->access_token_ciphertext);
+        if ($accessToken === '') {
+            throw new RuntimeException('The encrypted Meta access token is missing.');
+        }
+
+        $body = $this->safeBody($payload);
+        $requestFingerprint = $this->requestFingerprint($connection, $version, $edge, $body);
+        $startedAt = microtime(true);
+
+        try {
+            $response = Http::acceptJson()
+                ->asForm()
+                ->withToken($accessToken)
+                ->connectTimeout($this->connectTimeoutSeconds())
+                ->timeout($this->timeoutSeconds())
+                ->withOptions(['allow_redirects' => false])
+                ->post($endpoint, $body);
+
+            $responsePayload = $response->json();
+            $responsePayload = is_array($responsePayload) ? $responsePayload : [];
+            $error = is_array($responsePayload['error'] ?? null) ? $responsePayload['error'] : [];
+            $providerObjectId = $this->safeProviderId($responsePayload['id'] ?? null);
+            $successful = $response->successful() && $error === [] && $providerObjectId !== null;
+            $status = $response->status();
+
+            $result = [
+                'successful' => $successful,
+                'retryable' => !$successful && $this->isRetryableHttpStatus($status),
+                'http_method' => 'POST',
+                'http_status' => $status,
+                'provider_object_id' => $providerObjectId,
+                'provider_response_ref' => $providerObjectId ? $this->responseRef($providerObjectId) : null,
+                'provider_error_code' => $this->safeScalar($error['code'] ?? null, 80),
+                'provider_error_subcode' => $this->safeScalar($error['error_subcode'] ?? null, 80),
+                'redacted_message' => $successful
+                    ? 'Meta Marketing API accepted the campaign publish step.'
+                    : $this->safeProviderMessage($error['message'] ?? null),
+                'request_fingerprint' => $requestFingerprint,
+                'duration_ms' => $this->durationMs($startedAt),
+            ];
+        } catch (Throwable $exception) {
+            Log::warning('FB MARKETING campaign publish provider request failed safely.', [
+                'fbm_connection_id' => (int) $connection->id,
+                'operation_key' => $operationKey,
+                'exception_class' => get_class($exception),
+            ]);
+
+            $result = [
+                'successful' => false,
+                'retryable' => true,
+                'http_method' => 'POST',
+                'http_status' => null,
+                'provider_object_id' => null,
+                'provider_response_ref' => null,
+                'provider_error_code' => null,
+                'provider_error_subcode' => null,
+                'redacted_message' => 'Meta Marketing API request failed before a safe response was received.',
+                'request_fingerprint' => $requestFingerprint,
+                'duration_ms' => $this->durationMs($startedAt),
+            ];
+        }
+
+        $this->apiRequestLogs->record($connection, $operationKey, $version, $result);
+
+        return $result;
+    }
+
+    private function endpoint(string $version, string $edge): string
+    {
+        $baseUrl = rtrim((string) config('fb_marketing.graph_api.base_url', 'https://graph.facebook.com'), '/');
+        $parts = parse_url($baseUrl);
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $trustedHosts = array_map('strtolower', (array) config('fb_marketing.graph_api.trusted_hosts', ['graph.facebook.com']));
+
+        if ($scheme !== 'https' || $host === '' || !in_array($host, $trustedHosts, true)) {
+            throw new RuntimeException('FB MARKETING Graph host policy rejected the campaign publish endpoint.');
+        }
+
+        return $baseUrl . '/' . $version . '/' . $edge;
+    }
+
+    private function safeBody(array $payload): array
+    {
+        $body = [];
+        foreach ($payload as $key => $value) {
+            if (!is_string($key) || !preg_match('/^[A-Za-z0-9_]+$/', $key)) {
+                continue;
+            }
+            if (is_array($value)) {
+                $encoded = json_encode($value, JSON_UNESCAPED_SLASHES);
+                if (is_string($encoded)) {
+                    $body[$key] = $encoded;
+                }
+                continue;
+            }
+            if (is_bool($value)) {
+                $body[$key] = $value ? 'true' : 'false';
+                continue;
+            }
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                $body[$key] = (string) $value;
+            }
+        }
+
+        return $body;
+    }
+
+    private function assertAllowedEdge(string $edge): void
+    {
+        $allowed = array_map(fn($item) => str_replace('{ad_account_id}', '[A-Za-z0-9_]+', (string) $item), (array) config('fb_marketing.provider_writer.allowed_publish_edges', []));
+        foreach ($allowed as $pattern) {
+            if (@preg_match('#^' . $pattern . '$#', $edge)) {
+                return;
+            }
+        }
+
+        throw new RuntimeException('FB MARKETING campaign publish edge is not allow-listed.');
+    }
+
+    private function normalizeEdge(string $edge): string
+    {
+        $edge = trim($edge, '/ ');
+        if ($edge === '' || strlen($edge) > 190 || !preg_match('/^[A-Za-z0-9_:-]+\/[A-Za-z0-9_:-]+$/', $edge)) {
+            throw new RuntimeException('FB MARKETING received an invalid campaign publish edge.');
+        }
+
+        return $edge;
+    }
+
+    private function safeProviderId($value): ?string
+    {
+        if (!is_scalar($value)) {
+            return null;
+        }
+        $value = trim((string) $value);
+
+        return $value !== '' && strlen($value) <= 190 && preg_match('/^[A-Za-z0-9_.:-]+$/', $value) ? $value : null;
+    }
+
+    private function responseRef(string $providerObjectId): string
+    {
+        return hash_hmac('sha256', 'provider-response|' . $providerObjectId, (string) config('app.key', ''));
+    }
+
+    private function requestFingerprint(FbmConnection $connection, string $version, string $edge, array $body): string
+    {
+        return hash_hmac('sha256', json_encode([
+            'fbm-campaign-publish-write',
+            (int) $connection->id,
+            (int) $connection->secret_version,
+            $version,
+            $edge,
+            array_keys($body),
+        ]), (string) config('app.key', ''));
+    }
+
+    private function safeProviderMessage($message): string
+    {
+        $message = is_scalar($message) ? trim(SecretRedactor::redactString((string) $message)) : '';
+
+        return $message !== '' ? substr($message, 0, 500) : 'Meta Marketing API rejected the campaign publish step.';
+    }
+
+    private function safeScalar($value, int $length): ?string
+    {
+        if (!is_scalar($value)) {
+            return null;
+        }
+        $value = trim(SecretRedactor::redactString((string) $value));
+
+        return $value === '' ? null : substr($value, 0, $length);
+    }
+
+    private function isRetryableHttpStatus(int $status): bool
+    {
+        return in_array($status, [408, 425, 429], true) || $status >= 500;
+    }
+
+    private function connectTimeoutSeconds(): int
+    {
+        return max(1, min(30, (int) config('fb_marketing.graph_api.connect_timeout_seconds', 5)));
+    }
+
+    private function timeoutSeconds(): int
+    {
+        return max(1, min(120, (int) config('fb_marketing.graph_api.timeout_seconds', 12)));
+    }
+
+    private function durationMs(float $startedAt): int
+    {
+        return max(0, (int) round((microtime(true) - $startedAt) * 1000));
+    }
+}

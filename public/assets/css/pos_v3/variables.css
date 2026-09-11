@@ -1,0 +1,83 @@
+.pos-v3-page {
+    --pos-v3-accent: #308e87;
+    --pos-v3-accent-light: #e6f4f3;
+    --pos-v3-accent-soft: #f0faf9;
+    --pos-v3-border: #e5e7eb;
+    --pos-v3-text: #1f2937;
+    --pos-v3-text-muted: #6b7280;
+    --pos-v3-radius: 10px;
+    --pos-v3-radius-sm: 6px;
+    --pos-v3-spacing: 12px;
+    --pos-v3-shadow: 0 2px 8px rgba(15, 34, 58, 0.06);
+    --pos-v3-font: Arial, Helvetica, sans-serif;
+}
+
+.pos-v3-page *,
+.pos-v3-page *::before,
+.pos-v3-page *::after {
+    box-sizing: border-box;
+}
+
+.pos-v3-page {
+    font-family: var(--pos-v3-font);
+    color: var(--pos-v3-text);
+}
+
+.pos-v3-page [v-cloak] {
+    display: none;
+}
+
+.pos-v3-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--pos-v3-accent-light);
+    color: var(--pos-v3-accent);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.pos-v3-card {
+    background: #fff;
+    border: 1px solid var(--pos-v3-border);
+    border-radius: var(--pos-v3-radius);
+    box-shadow: var(--pos-v3-shadow);
+}
+
+.pos-v3-card__body {
+    padding: var(--pos-v3-spacing);
+    padding-top: 0;
+}
+
+.pos-v3-placeholder {
+    color: var(--pos-v3-text-muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 24px 12px;
+}
+
+.pos-v3-select,
+.pos-v3-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--pos-v3-border);
+    border-radius: var(--pos-v3-radius-sm);
+    font-size: 13px;
+    background: #fff;
+}
+
+.pos-v3-select:focus,
+.pos-v3-input:focus {
+    outline: none;
+    border-color: var(--pos-v3-accent);
+    box-shadow: 0 0 0 2px rgba(48, 142, 135, 0.15);
+}
+
+.pos-v3-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pos-v3-text-muted);
+    margin-bottom: 4px;
+}

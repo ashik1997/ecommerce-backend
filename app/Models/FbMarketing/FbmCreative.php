@@ -1,0 +1,4 @@
+<?php
+namespace App\Models\FbMarketing;
+use Illuminate\Database\Eloquent\Model;
+class FbmCreative extends Model{protected $table='fbm_creatives';protected $guarded=[];protected $casts=['is_available'=>'boolean','last_seen_at'=>'datetime'];protected $hidden=['provider_sync_key','thumbnail_url_hash'];public function connection(){return $this->belongsTo(FbmConnection::class,'fbm_connection_id');}public function adAccount(){return $this->belongsTo(FbmAdAccount::class,'fbm_ad_account_id');}public function toSafeSummary():array{return ['id'=>(int)$this->id,'connection_name'=>optional($this->connection)->connection_name,'ad_account_name'=>optional($this->adAccount)->asset_name,'name'=>$this->name,'title'=>$this->title,'body'=>$this->body,'object_type'=>$this->object_type,'has_thumbnail_hash'=>$this->thumbnail_url_hash!==null,'is_available'=>(bool)$this->is_available,'last_seen_at'=>optional($this->last_seen_at)->toDateTimeString()];}}

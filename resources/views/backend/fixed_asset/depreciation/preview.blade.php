@@ -1,0 +1,8 @@
+@extends('backend.master')
+@section('page_title','Depreciation Preview')
+@section('page_heading','Depreciation Preview')
+@section('header_css')@include('backend.fixed_asset._style')@endsection
+@section('content')
+<div class="fa-page-wrap">
+    @include('backend.fixed_asset.partials.nav')<div class="card"><div class="card-body"><div class="d-flex justify-content-between mb-3"><h4 class="fa-card-title">Depreciation Preview — {{ $period }}</h4><form method="post" action="{{ route('fixed-assets.depreciation.post') }}">@csrf<input type="hidden" name="period" value="{{ $period }}"><input type="hidden" name="warehouse_id" value="{{ $warehouseId }}"><button class="btn btn-success">Post Depreciation</button></form></div><div class="table-responsive"><table class="table table-bordered"><thead><tr><th>Asset Code</th><th>Name</th><th>Opening Book Value</th><th>Depreciation</th><th>Closing Book Value</th></tr></thead><tbody>@php($total=$preview['total'] ?? 0)@forelse(($preview['rows'] ?? []) as $row)<tr><td>{{ optional($row['asset'] ?? null)->asset_code }}</td><td>{{ optional($row['asset'] ?? null)->asset_name }}</td><td>{{ number_format($row['opening_book_value'] ?? 0,2) }}</td><td>{{ number_format($row['depreciation_amount'] ?? 0,2) }}</td><td>{{ number_format($row['closing_book_value'] ?? 0,2) }}</td></tr>@empty<tr><td colspan="5" class="text-center text-muted">No depreciable asset found for this period.</td></tr>@endforelse</tbody><tfoot><tr><th colspan="3" class="text-right">Total</th><th>{{ number_format($total,2) }}</th><th></th></tr></tfoot></table></div></div></div></div>
+@endsection

@@ -1,0 +1,34 @@
+# FBM-00 source-secret remediation placeholders.
+# Copy only the required keys into the deployment's private .env file.
+# Never commit actual values.
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=
+
+# Required by external legacy ecommerce/mobile API callers.
+# Rotate the previously exposed value before deployment.
+LEGACY_API_AUTHORIZATION_TOKEN=
+
+# Required only when the Pathao webhook handshake is enabled.
+# Rotate the previously exposed value before deployment.
+PATHAO_WEBHOOK_INTEGRATION_SECRET=
+
+# Developer workstation only. Never enable in production.
+ALLOW_LOCAL_TENANT_SEEDER=false
+ALLOW_LOCAL_UNSAFE_WEB_MAINTENANCE_ROUTES=false
+
+# FBM-06 dedicated queue and scheduler policy.
+# Keep values private. These are infrastructure settings, not Meta credentials.
+FBM_QUEUE_CONNECTION=fb-marketing
+FBM_QUEUE_NAME=fb-marketing
+FBM_QUEUE_DATABASE_CONNECTION=landlord
+FBM_TENANT_REGISTRY_CONNECTION=landlord
+FBM_QUEUE_RETRY_AFTER=360
+FBM_ALLOW_SINGLE_TENANT_MYSQL_QUEUE=false
+FBM_SCHEDULER_ENABLED=false
+
+
+# FBM-11 bounded mapped-domain catalog-only testing fallback.
+# This is infrastructure policy only; Meta credentials stay encrypted in tenant DB.
+FBM_MANUAL_CATALOG_SYNC_ENABLED=true

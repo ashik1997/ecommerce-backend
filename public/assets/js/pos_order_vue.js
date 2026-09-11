@@ -1,0 +1,2721 @@
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            func.apply(this, args);
+        }, wait);
+    };
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const el = document.getElementById('pos-desktop-app');
+    if (!el || typeof Vue === 'undefined') {
+        return;
+    }
+
+    const routes = (window.POS_DESKTOP_CONFIG && window.POS_DESKTOP_CONFIG.routes) || {};
+    // const LOCAL_SAVE_KEY = 'pos_desktop_saved_order';
+
+    // Each tab has a unique ID using sessionStorage — data survives page reloads, but is removed when the tab is closed.
+    if (!sessionStorage.getItem('pos_tab_id')) {
+        sessionStorage.setItem('pos_tab_id', 'tab_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+    }
+    const POS_TAB_ID = sessionStorage.getItem('pos_tab_id');
+    const LOCAL_SAVE_KEY = 'pos_draft_' + POS_TAB_ID; // LOCAL_SAVE_KEY 
+
+    window.pos_order_app = new Vue({
+        el: '#pos-desktop-app',
+        data: function () {
+            return {
+                // warehouses
+                warehouses: (window.POS_DESKTOP_CONFIG && window.POS_DESKTOP_CONFIG.warehouses) || [],
+                salesUsers: (window.POS_DESKTOP_CONFIG && window.POS_DESKTOP_CONFIG.sales_users) || [],
+                affiliates: (window.POS_DESKTOP_CONFIG && window.POS_DESKTOP_CONFIG.affiliates) || [],
+                selectedWarehouseId: null,
+                // products & filters
+                products: [],
+                page: 1,
+                perPage: 24,
+                hasMore: false,
+                selectedProductPriceType: 'product_price',
+
+                selected_category_type: 'category_id', // category_id, subcategory_id, childcategory_id
+                selected_category_id: null,
+
+                categories: [],
+                subcategories: [],
+                childcategories: [],
+                customerSources: [],
+                deliveryMethods: [],
+                courierMethods: [],
+                localDeliveryMethods: [],
+                outlets: [],
+                filters: {
+                    category: null,
+                    subcategory: null,
+                    childcategory: null,
+                },
+
+                // search
+                searchQuery: '',
+                barcodeQuery: '',
+                showSearchDropdown: false,
+                searchResults: [],
+
+                // cart
+                cart: [],
+                totals: {
+                    subtotal: 0,
+                    discount: { type: 'percent', value: 0, amount: 0 },
+                    coupon: { code: '', percent: 0, amount: 0 },
+                    extra_charge: 0,
+                    delivery_charge: 0,
+                    round_off: 0,
+                    grand_total: 0,
+                },
+                coupon: {
+                    code: '',
+                    percent: 0,
+                    type: '',   // 'percent' | 'fixed' when applied
+                    value: 0,  // percent number or fixed amount
+                },
+                extra_charge: 0,
+                extraChargeLines: [],
+                useExtraChargeLines: false,
+                delivery_charge: 0,
+                round_off: 0,
+                // sms send option
+                smsSendToCustomer: true,
+
+                // customer
+                customerSearch: '',
+                selectedCustomer: {
+                    id: 1,
+                    name: 'Walking Customer',
+                    phone: '',
+                    email: '',
+                    address: '',
+                    image: null,
+                },
+                showCustomerModal: false,
+                newCustomer: {
+                    name: '',
+                    mobile: '',
+                    email: '',
+                    address: '',
+                },
+
+                // payment
+                showPaymentModal: false,
+                paymentMethods: [
+                    { id: 'cash', title: 'Cash', selected: true, amount: 0 },
+                    { id: 'bkash', title: 'Bkash', selected: true, amount: 0 },
+                    { id: 'nogod', title: 'Nogod', selected: true, amount: 0 },
+                    { id: 'rocket', title: 'Rocket', selected: true, amount: 0 },
+                    { id: 'bank', title: 'Bank', selected: true, amount: 0 },
+                ],
+                showCustomerDuePaymentModal: false,
+                duePayment: {
+                    customer: null,
+                    dueItems: [],
+                    availableAdvance: 0,
+                    totalDue: 0,
+                    paymentAmount: 0,
+                    advanceAmount: 0,
+                    paymentMode: '',
+                    paymentDate: new Date().toISOString().slice(0, 10),
+                    note: '',
+                    allocations: [],
+                },
+                delivery_info: {
+                    delivery_method: '',
+                    expected_delivery_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    order_source: 'pos',
+                    order_note: '',
+                    outlet_id: '',
+                    courier_method: null,
+                    courier_method_title: '',
+                    delivery_provider_id: null,
+                    local_delivery_provider_id: null,
+                    local_delivery_provider_name: '',
+                    delivery_charge_type: '',
+                },
+                useAdvance: false,
+                advanceAmount: 0,
+
+                // holds
+                showHoldListModal: false,
+                holdList: [],
+                hasSavedDraft: false,
+                activeTab: 'customer',
+                show_product_search_result: false,
+                is_customer_edit_mode: false,
+
+                // loading states
+                loading: {
+                    products: false,
+                    search: false,
+                    categories: false,
+                    customer: false,
+                    coupon: false,
+                    hold: false,
+                    holdList: false,
+                    order: false,
+                    barcode: false,
+                    duePayment: false,
+                    duePaymentSubmit: false,
+                },
+                // target stats (auth user sales target analytics)
+                targetStats: null,
+                order_status: 'delivered', // 'quotation', 'invoiced', 'delivered'
+                selectedSalesmanId: null,
+                affiliateCode: '',
+                cash_received: 0,
+                window_width: window.innerWidth,
+                isEditMode: false,
+                currentOrderId: null,
+                currentOrderSlug: null,
+                quotationId: null,
+            };
+        },
+        computed: {
+            paymentTotal() {
+                const base = this.paymentMethods.reduce((sum, m) => {
+                    return sum + (m.selected ? Number(m.amount || 0) : 0);
+                }, 0);
+
+                let advance = 0;
+                if (this.useAdvance) {
+                    advance = Number(this.advanceAmount || 0);
+                }
+
+                return base + advance;
+            },
+            selectedWarehouseName() {
+                if (!this.selectedWarehouseId) {
+                    return 'All Warehouses';
+                }
+                const found = this.warehouses.find(w => Number(w.id) === Number(this.selectedWarehouseId));
+                return found ? found.title : 'Warehouse';
+            },
+            totalPurchasePrice() {
+                return this.cart.reduce((sum, item) => {
+                    // Assumes each cart item has purchase_price and qty (quantity)
+                    const price = Number(item.purchase_price || 0);
+                    const qty = Number(item.qty || 0);
+                    return sum + (price * qty);
+                }, 0);
+            },
+            exchange_amount() {
+                let amount = this.cash_received - this.total_cash_payment || 0;
+                if (amount < 0) {
+                    amount = 0;
+                }
+                return amount;
+            },
+            total_cash_payment() {
+                let payemnt = Number(this.paymentMethods.find(p => p.id === String('cash').toLowerCase())?.amount || 0);
+                return payemnt;
+            },
+            extraChargeLineTotal() {
+                return this.normalizeExtraChargeLines(this.extraChargeLines).reduce((sum, line) => {
+                    return sum + Number(line.amount || 0);
+                }, 0);
+            }
+        },
+        watch: {
+            selectedCustomer: {
+                deep: true,
+                handler(newVal, oldVal) {
+                    // 
+                    if (!newVal) {
+                        this.activeTab = 'customer';
+                    }
+                    if (newVal && (!oldVal || newVal.id !== oldVal.id)) {
+                        this.useAdvance = false;
+                        this.advanceAmount = 0;
+                    }
+
+                    // Auto-save logic
+                    if (!this.cart.length) return;
+                    try {
+                        const payload = this.serializeOrderState();
+                        window.localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(payload));
+                    } catch (e) { }
+                }
+            },
+            cart: {
+                deep: true,
+                handler(newVal) {
+                    if (!window.localStorage) return;
+                    try {
+                        const payload = this.serializeOrderState();
+                        window.localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(payload));
+                        this.hasSavedDraft = newVal.length > 0;
+                    } catch (e) {
+                        console.warn('Auto-save failed', e);
+                    }
+                }
+            },
+        },
+        mounted() {
+            if (!this.selectedWarehouseId && this.warehouses && this.warehouses.length > 0) {
+                this.selectedWarehouseId = this.warehouses[0].id;
+            }
+            this.$nextTick(() => {
+                const el = this.$refs.barcodeInput;
+                if (el && typeof el.focus === 'function') {
+                    el.focus();
+                }
+            });
+            this.loadCategories();
+            this.loadPaymentMethods();
+            this.fetchProducts();
+            this.checkForSavedOrder();
+            this.loadTargetStats();
+            this.loadCustomerSources();
+            this.loadDeliveryMethods();
+            this.loadOutlets();
+            this.loadCourierMethods();
+            this.loadLocalDeliveryMethods();
+            this.initEditModeFromUrl();
+
+            // Auto-restore: after page reload, the cart is automatically restored.
+            if (window.localStorage) {
+                try {
+                    const raw = window.localStorage.getItem(LOCAL_SAVE_KEY);
+                    if (raw) {
+                        const data = JSON.parse(raw);
+                        if (data && Array.isArray(data.cart) && data.cart.length) {
+                            this.applySavedOrder(data);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Auto-restore failed', e);
+                }
+            }
+        },
+        methods: {
+            loadCustomerSources() {
+                if (!routes.customerSource) return;
+                this.get(routes.customerSource)
+                    .then((r) => {
+                        this.customerSources = r.data.data;
+                    })
+                    .catch(() => { });
+            },
+            loadDeliveryMethods() {
+                if (!routes.deliveryMethods) return;
+                this.get(routes.deliveryMethods)
+                    .then((r) => {
+                        this.deliveryMethods = r.data.data;
+                    })
+                    .catch(() => { });
+            },
+            loadOutlets() {
+                if (!routes.outlets) return;
+                this.get(routes.outlets)
+                    .then((r) => {
+                        this.outlets = r.data.data;
+                    })
+                    .catch(() => { });
+            },
+            loadCourierMethods() {
+                if (!routes.courierMethods) return;
+                this.get(routes.courierMethods)
+                    .then((r) => {
+                        this.courierMethods = r.data.data;
+                    })
+                    .catch(() => { });
+            },
+            loadLocalDeliveryMethods() {
+                if (!routes.localDeliveryMethods) return;
+                this.get(routes.localDeliveryMethods)
+                    .then((r) => {
+                        this.localDeliveryMethods = r.data.data;
+                    })
+                    .catch(() => { });
+            },
+            s_confirm(title, text = null, icon = 'question') {
+                if (typeof Swal !== 'undefined') {
+                    return Swal.fire({
+                        title,
+                        text: text || undefined,
+                        icon,
+                        showCancelButton: true,
+                        confirmButtonText: 'Yes',
+                        cancelButtonText: 'Cancel',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                    }).then((result) => !!result.isConfirmed);
+                }
+                return Promise.resolve(!!window.confirm(title));
+            },
+            setSelectedCategory(type, id) {
+                this.selected_category_type = type;
+                this.selected_category_id = id;
+                this.page = 1;
+                this.fetchProducts();
+            },
+            setSelectedCustomer(customer) {
+                this.selectedCustomer = customer;
+            },
+            openCustomerDuePayment(customer) {
+                const targetCustomer = customer || this.selectedCustomer;
+                if (!targetCustomer || !targetCustomer.id || Number(targetCustomer.id) === 1) {
+                    this.s_alert('Select a customer with due first.', 'warning');
+                    return;
+                }
+
+                this.resetDuePayment(targetCustomer);
+                this.showCustomerDuePaymentModal = true;
+                this.loadCustomerDuePaymentInfo(targetCustomer.id);
+            },
+            closeCustomerDuePaymentModal() {
+                if (this.loading.duePaymentSubmit) return;
+                this.showCustomerDuePaymentModal = false;
+            },
+            resetDuePayment(customer) {
+                const firstPaymentMethod = this.paymentMethods && this.paymentMethods.length ? this.paymentMethods[0] : null;
+                const firstPaymentModeId = firstPaymentMethod ? (firstPaymentMethod.payment_type_id || firstPaymentMethod.id) : '';
+                this.duePayment = {
+                    customer: customer || null,
+                    dueItems: [],
+                    availableAdvance: 0,
+                    totalDue: Number(customer && customer.due_amount ? customer.due_amount : 0),
+                    paymentAmount: Number(customer && customer.due_amount ? customer.due_amount : 0),
+                    advanceAmount: 0,
+                    paymentMode: firstPaymentModeId,
+                    paymentDate: new Date().toISOString().slice(0, 10),
+                    note: '',
+                    allocations: [],
+                };
+                this.refreshDuePaymentAllocation();
+            },
+            loadCustomerDuePaymentInfo(customerId) {
+                if (!routes.customerDueOrders) return;
+                this.loading.duePayment = true;
+                this.get(routes.customerDueOrders + '/' + customerId)
+                    .then((r) => {
+                        if (!(r.data && r.data.success)) {
+                            this.s_alert((r.data && r.data.message) || 'Failed to load customer due.', 'error');
+                            return;
+                        }
+
+                        this.duePayment.customer = r.data.customer || this.duePayment.customer;
+                        this.duePayment.dueItems = r.data.due_items || [];
+                        this.duePayment.availableAdvance = Number(r.data.available_advance || 0);
+                        this.duePayment.totalDue = Number(r.data.total_due || 0);
+                        this.duePayment.paymentAmount = this.duePayment.totalDue;
+                        this.duePayment.advanceAmount = 0;
+                        this.refreshDuePaymentAllocation();
+                    })
+                    .catch((e) => {
+                        const msg = e.response && e.response.data && e.response.data.message ? e.response.data.message : 'Failed to load customer due.';
+                        this.s_alert(msg, 'error');
+                    })
+                    .finally(() => {
+                        this.loading.duePayment = false;
+                    });
+            },
+            refreshDuePaymentAllocation() {
+                let cashAmount = Number(this.duePayment.paymentAmount || 0);
+                let advanceAmount = Number(this.duePayment.advanceAmount || 0);
+
+                if (advanceAmount > this.duePayment.availableAdvance) {
+                    advanceAmount = this.duePayment.availableAdvance;
+                    this.duePayment.advanceAmount = advanceAmount;
+                }
+                if (advanceAmount > this.duePayment.totalDue) {
+                    advanceAmount = this.duePayment.totalDue;
+                    this.duePayment.advanceAmount = advanceAmount;
+                }
+
+                const allocations = [];
+                let remainingAmount = cashAmount + advanceAmount;
+                (this.duePayment.dueItems || []).forEach((item) => {
+                    if (remainingAmount <= 0) return;
+                    const itemDue = Number(item.due_amount || 0);
+                    const amountForItem = Math.min(remainingAmount, itemDue);
+                    if (amountForItem <= 0) return;
+
+                    const allocation = {
+                        source_type: item.source_type,
+                        reference_code: item.code,
+                        source_label: item.label,
+                        due_amount: itemDue,
+                        payment_amount: amountForItem,
+                        remaining: itemDue - amountForItem,
+                        is_full_payment: amountForItem >= itemDue,
+                    };
+                    if (item.source_type === 'opening_due') {
+                        allocation.opening_balance_id = item.opening_balance_id;
+                    } else {
+                        allocation.order_id = item.order_id;
+                    }
+                    allocations.push(allocation);
+                    remainingAmount -= amountForItem;
+                });
+
+                if (remainingAmount > 0 && cashAmount > 0) {
+                    allocations.push({
+                        order_id: null,
+                        reference_code: 'ADVANCE',
+                        source_label: 'Advance',
+                        due_amount: 0,
+                        payment_amount: remainingAmount,
+                        remaining: 0,
+                        is_full_payment: false,
+                        is_advance: true,
+                    });
+                }
+
+                this.duePayment.allocations = allocations;
+            },
+            submitCustomerDuePayment() {
+                const cashAmount = Number(this.duePayment.paymentAmount || 0);
+                const advanceAmount = Number(this.duePayment.advanceAmount || 0);
+                if (!this.duePayment.customer || !this.duePayment.customer.id) {
+                    this.s_alert('Customer is required.', 'warning');
+                    return;
+                }
+                if ((cashAmount + advanceAmount) <= 0) {
+                    this.s_alert('Payment amount is required.', 'warning');
+                    return;
+                }
+                if (cashAmount > 0 && !this.duePayment.paymentMode) {
+                    this.s_alert('Payment mode is required.', 'warning');
+                    return;
+                }
+
+                this.refreshDuePaymentAllocation();
+                this.loading.duePaymentSubmit = true;
+                this.post(routes.storeCustomerPayment, {
+                    customer_id: this.duePayment.customer.id,
+                    payment_amount: cashAmount,
+                    advance_amount: advanceAmount,
+                    payment_mode: this.duePayment.paymentMode || null,
+                    payment_date: this.duePayment.paymentDate,
+                    payment_note: this.duePayment.note,
+                    payment_allocations: JSON.stringify(this.duePayment.allocations),
+                })
+                    .then((r) => {
+                        if (!(r.data && r.data.success)) {
+                            this.s_alert((r.data && r.data.message) || 'Payment failed.', 'error');
+                            return;
+                        }
+
+                        const remainingDue = Math.max(0, Number(this.duePayment.totalDue || 0) - cashAmount - advanceAmount);
+                        this.selectedCustomer = Object.assign({}, this.selectedCustomer, {
+                            due_amount: remainingDue,
+                            due: remainingDue,
+                        });
+                        this.showCustomerDuePaymentModal = false;
+                        this.s_alert(r.data.message || 'Customer transaction saved successfully!', 'success');
+                    })
+                    .catch((e) => {
+                        const data = e.response && e.response.data ? e.response.data : {};
+                        let msg = data.message || 'Payment failed.';
+                        if (data.errors) {
+                            msg = Object.values(data.errors).map((value) => value[0]).join('\n');
+                        }
+                        this.s_alert(msg, 'error');
+                    })
+                    .finally(() => {
+                        this.loading.duePaymentSubmit = false;
+                    });
+            },
+            formatMoney(v) {
+                return (Number(v) || 0).toFixed(2);
+            },
+            randomHex(seed) {
+                const s = String(seed || Math.random());
+                let h = 0;
+                for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i) | 0;
+                const c = (h & 0xFFFFFF).toString(16).padStart(6, '0').slice(0, 6);
+                return c;
+            },
+            normalizeExtraChargeLines(lines) {
+                if (!Array.isArray(lines)) {
+                    return [];
+                }
+
+                return lines.map((line) => ({
+                    temp_id: line.temp_id || ('charge-' + Date.now() + '-' + Math.random().toString(36).slice(2)),
+                    charge_type_id: line.charge_type_id || null,
+                    title: (line.title || 'Extra Charge').toString(),
+                    amount: Math.max(0, Number(line.amount || 0)),
+                })).filter((line) => line.title || line.amount > 0);
+            },
+            setExtraChargeLines(lines) {
+                this.extraChargeLines = this.normalizeExtraChargeLines(lines);
+                if (this.useExtraChargeLines || this.extraChargeLines.length) {
+                    this.useExtraChargeLines = true;
+                    this.extra_charge = this.extraChargeLineTotal;
+                }
+                this.recalcTotals();
+            },
+            setUseExtraChargeLines(enabled) {
+                this.useExtraChargeLines = !!enabled;
+                if (this.useExtraChargeLines) {
+                    this.extra_charge = this.extraChargeLineTotal;
+                }
+                this.recalcTotals();
+            },
+            setActiveTab(tab) {
+                if (tab !== 'customer' && !this.selectedCustomer) {
+                    this.s_alert('Select or create a customer first.', 'warning');
+                    this.activeTab = 'customer';
+                    return;
+                }
+                this.activeTab = tab;
+            },
+
+            // API helpers
+            get(url, params = {}) {
+                const p = Object.assign({}, params);
+                if (this.selectedWarehouseId) {
+                    p.warehouse_id = this.selectedWarehouseId;
+                }
+                return axios.get(url, { params: p });
+            },
+            post(url, body = {}) {
+                const payload = Object.assign({}, body);
+                if (this.selectedWarehouseId && !payload.warehouse_id) {
+                    payload.warehouse_id = this.selectedWarehouseId;
+                }
+                return axios.post(url, payload);
+            },
+            initEditModeFromUrl() {
+                const search = new URLSearchParams(window.location.search || '');
+                const orderId = Number(search.get('order_id') || search.get('edit_order_id') || 0);
+                const quotationId = Number(search.get('quotation_id') || 0);
+
+                if (orderId && routes.editOrder) {
+                    this.loadOrderForEdit(orderId);
+                } else if (quotationId && routes.quotationPosData) {
+                    this.loadQuotationForOrder(quotationId);
+                }
+            },
+            loadOrderForEdit(orderId) {
+                this.loading.order = true;
+                this.post(routes.editOrder, {
+                    action: 'load',
+                    order_id: orderId,
+                })
+                    .then((r) => {
+                        if (!(r.data && r.data.success && r.data.data)) {
+                            this.s_alert((r.data && r.data.message) || 'Failed to load order for edit', 'error');
+                            return;
+                        }
+                        this.applyEditOrderPayload(r.data.data);
+                    })
+                    .catch((e) => {
+                        const msg = (e.response && e.response.data && e.response.data.message)
+                            ? e.response.data.message
+                            : (e.message || 'Unknown error');
+                        this.s_alert('Failed to load order for edit', 'error', msg);
+                    })
+                    .finally(() => {
+                        this.loading.order = false;
+                    });
+            },
+            applyEditOrderPayload(data) {
+                this.isEditMode = true;
+                this.currentOrderId = data.order_id || null;
+                this.currentOrderSlug = data.order_slug || null;
+                if (data.warehouse_id) {
+                    this.selectedWarehouseId = data.warehouse_id;
+                }
+                this.cart = Array.isArray(data.cart) ? data.cart : [];
+                this.totals = data.totals || this.totals;
+                this.selectedCustomer = data.customer || this.selectedCustomer;
+                this.delivery_info = data.delivery_info || this.delivery_info;
+                this.order_status = data.order_status || this.order_status;
+                this.selectedSalesmanId = data.salesman_id || null;
+                this.affiliateCode = data.affiliate_code || '';
+                this.useAdvance = !!data.use_advance;
+                this.advanceAmount = Number(data.advance_amount || 0);
+                this.extraChargeLines = this.normalizeExtraChargeLines(this.totals.extra_charge_lines || []);
+                this.useExtraChargeLines = this.extraChargeLines.length > 0;
+                this.extra_charge = Number(this.totals.extra_charge || 0);
+                this.delivery_charge = Number(this.totals.delivery_charge || 0);
+                this.round_off = Number(this.totals.round_off || 0);
+                this.populatePaymentMethodsFromLines(data.payments || []);
+                if (data.customer && data.customer.address) {
+                    this.selectedCustomer.address = data.customer.address;
+                }
+                this.recalcTotals();
+            },
+            populatePaymentMethodsFromLines(lines) {
+                const payments = Array.isArray(lines) ? lines : [];
+                this.paymentMethods = this.paymentMethods.map((m) => {
+                    const existing = payments.find((p) => String(p.method) === String(m.id));
+                    return {
+                        ...m,
+                        amount: existing ? Number(existing.amount || 0) : 0,
+                    };
+                });
+            },
+
+            // ── Load quotation into POS form (convert quotation → new order) ─
+            loadQuotationForOrder(quotationId) {
+                const url = routes.quotationPosData.replace('__ID__', quotationId);
+                this.loading.order = true;
+                this.get(url)
+                    .then((r) => {
+                        if (!(r.data && r.data.success && r.data.data)) {
+                            this.s_alert((r.data && r.data.message) || 'Failed to load quotation', 'error');
+                            return;
+                        }
+                        this.quotationId = quotationId;
+                        this.applyQuotationPayload(r.data.data);
+                    })
+                    .catch((e) => {
+                        const msg = (e.response && e.response.data && e.response.data.message)
+                            ? e.response.data.message
+                            : (e.message || 'Unknown error');
+                        this.s_alert('Failed to load quotation', 'error', msg);
+                    })
+                    .finally(() => { this.loading.order = false; });
+            },
+
+            applyQuotationPayload(data) {
+                // This is a NEW order pre-filled from a quotation — not edit mode
+                this.isEditMode = false;
+                this.currentOrderId = null;
+
+                if (data.warehouse_id) {
+                    this.selectedWarehouseId = data.warehouse_id;
+                }
+                this.cart = Array.isArray(data.cart) ? data.cart : [];
+
+                if (data.totals) {
+                    this.totals = Object.assign({}, this.totals, data.totals);
+                    this.extraChargeLines = this.normalizeExtraChargeLines(data.totals.extra_charge_lines || []);
+                    this.useExtraChargeLines = this.extraChargeLines.length > 0;
+                    this.extra_charge = Number(data.totals.extra_charge || 0);
+                    this.delivery_charge = Number(data.totals.delivery_charge || 0);
+                    this.round_off = Number(data.totals.round_off || 0);
+                }
+
+                if (data.customer) {
+                    this.selectedCustomer = data.customer;
+                }
+                if (data.delivery_info) {
+                    this.delivery_info = Object.assign({}, this.delivery_info, data.delivery_info);
+                }
+                if (data.order_status) {
+                    this.order_status = data.order_status;
+                }
+
+                // Reset payment amounts — quotation payments don't carry over
+                this.paymentMethods = this.paymentMethods.map((m) => ({ ...m, amount: 0 }));
+
+                this.recalcTotals();
+                this.s_alert(
+                    'Quotation ' + (data.quotation_code || '') + ' loaded. Review and submit to create order.',
+                    'info'
+                );
+            },
+
+            // LOADERS
+            loadTargetStats() {
+                if (!routes.targetStats) return;
+                this.get(routes.targetStats)
+                    .then((r) => {
+                        if (r.data && r.data.success && r.data.data) {
+                            this.targetStats = r.data.data;
+                        }
+                    })
+                    .catch(() => { });
+            },
+            loadPaymentMethods() {
+                if (!routes.paymentMethods) return;
+                this.get(routes.paymentMethods)
+                    .then((r) => {
+                        if (r.data && r.data.success && r.data.data) {
+                            // Transform payment methods to match expected format
+                            const mapped = r.data.data.map((method) => ({
+                                id: method.id,
+                                payment_type_id: method.payment_type_id,
+                                title: method.title,
+                                account_id: method.account_id,
+                                account_name: method.account_name,
+                                // selected: ['cash', 'Cash'].includes(method.title),
+                                selected: true,
+                                amount: 0
+                            }));
+                            // Cash first, then others alphabetically by title
+                            const methods = mapped.sort((a, b) => {
+                                const aIsCash = /^cash$/i.test((a.title || '').trim());
+                                const bIsCash = /^cash$/i.test((b.title || '').trim());
+                                if (aIsCash && !bIsCash) return -1;
+                                if (!aIsCash && bIsCash) return 1;
+                                if (aIsCash && bIsCash) return 0;
+                                return (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
+                            });
+
+                            // If we have methods, replace the default ones
+                            if (methods.length > 0) {
+                                this.paymentMethods = methods;
+                            }
+                        }
+                    })
+                    .catch(() => {
+                        // Keep default payment methods on error
+                    });
+            },
+            loadCategories() {
+                if (!routes.categories) return;
+                this.loading.categories = true;
+                this.get(routes.categories)
+                    .then((r) => {
+                        const data = r.data && r.data.data ? r.data.data : {};
+                        this.categories = data.categories || [];
+                        this.subcategories = data.subcategories || [];
+                        this.childcategories = data.childcategories || [];
+                    })
+                    .catch(() => { })
+                    .finally(() => {
+                        this.loading.categories = false;
+                    });
+            },
+            fetchProducts() {
+                if (!routes.products) return;
+                this.loading.search = true;
+                this.products = {};
+                // this.show_product_search_result = true;
+                this.get(routes.products, {
+                    page: this.page,
+                    per_page: this.perPage,
+                    [this.selected_category_type]: this.selected_category_id,
+                })
+                    .then((r) => {
+                        console.log(r.data.data);
+                        const data = (r.data && r.data.data) || {};
+                        this.products = data.items || [];
+                        this.hasMore = !!data.has_more;
+                        console.log(this.products[3]);
+                    })
+                    .catch(() => { })
+                    .finally(() => {
+                        this.loading.search = false;
+                    });
+            },
+            hide_product_search_result() {
+                this.show_product_search_result = false;
+            },
+            clear_value_for_barcode(event) {
+                this.barcodeQuery = '';
+            },
+            onBarcodeInput: debounce(function () {
+                if (!routes.productsByBarcode) return;
+                const code = (this.barcodeQuery || '').trim();
+                if (!code) return;
+                this.loading.barcode = true;
+                this.post(routes.productsByBarcode, { code, warehouse_id: this.selectedWarehouseId })
+                    .then((r) => {
+                        this.selectProduct(r.data.data);
+                        // Clear so the next scan always changes the field (input fires, merge/increment works).
+                        this.barcodeQuery = '';
+                    })
+                    .catch((e) => {
+                        this.s_alert((e.response.data.message ?? 'Barcode lookup failed'), 'error');
+                    })
+                    .finally(() => {
+                        this.loading.barcode = false;
+                    });
+            }, 300),
+            onWarehouseChange() {
+                // Reload products and clear cart when warehouse changes
+                // this.show_product_search_result = false;
+                this.cart = [];
+                this.recalcTotals();
+                const q = (this.searchQuery || '').trim();
+                if (q) {
+                    this.onSearchInput();
+                } else {
+                    this.fetchProducts();
+                }
+            },
+            onFilterChange() {
+                this.page = 1;
+                this.fetchProducts();
+            },
+            prevPage() {
+                if (this.page > 1) {
+                    this.page--;
+                    this.fetchProducts();
+                }
+            },
+            nextPage() {
+                if (this.hasMore) {
+                    this.page++;
+                    this.fetchProducts();
+                }
+            },
+
+            changeCustomerEditMode(mode = false) {
+                this.is_customer_edit_mode = mode;
+            },
+
+            // SEARCH
+            onSearchInput: debounce(function () {
+                const q = (this.searchQuery || '').trim();
+                if (!q) {
+                    this.showSearchDropdown = false;
+                    this.loading.search = false;
+                    this.show_product_search_result = false;
+                    return;
+                }
+                if (!routes.search) return;
+                this.loading.search = true;
+                this.show_product_search_result = true;
+                this.get(routes.search, { q: q })
+                    .then((r) => {
+                        // this.searchResults = r.data && r.data.data ? r.data.data : [];
+                        // this.showSearchDropdown = true;
+                        this.products = r.data && r.data.data ? r.data.data.items : [];
+                    })
+                    .catch(() => { })
+                    .finally(() => {
+                        this.loading.search = false;
+                    });
+            }, 1000),
+            closeSearch() {
+                this.showSearchDropdown = false;
+            },
+
+            // CAMERA / BARCODE
+            openCamera() {
+                const code = window.prompt('Enter or scan barcode:');
+                if (code) {
+                    this.barcodeLookup(code);
+                }
+            },
+            barcodeLookup(code) {
+                if (!routes.barcode) return;
+                this.loading.barcode = true;
+                this.post(routes.barcode, { code: code, warehouse_id: this.selectedWarehouseId })
+                    .then((r) => {
+                        const data = r.data && r.data.data ? r.data.data : {};
+                        if (data.single) {
+                            this.onAddFromSearch(data.single);
+                        } else if (Array.isArray(data.items) && data.items.length) {
+                            this.searchResults = data.items;
+                            this.showSearchDropdown = true;
+                        } else {
+                            this.s_alert('No product found for barcode', 'warning');
+                        }
+                    })
+                    .catch(() => {
+                        this.s_alert('Barcode lookup failed', 'error');
+                    })
+                    .finally(() => {
+                        this.loading.barcode = false;
+                    });
+            },
+
+            removeItem(it, index) {
+                this.cart.splice(index, 1);
+                this.recalcTotals();
+            },
+
+            // CART
+            // selectProduct: function (p, variantPayload) {
+            //     let unit_data = {};
+            //     if (p.unit) {
+            //         unit_data.unit_code = p.unit.code;
+
+            //         unit_data.warehouse_name = p.unit.warehouse_name;
+            //         unit_data.cartoon_name = p.unit.cartoon_name;
+            //         unit_data.room_name = p.unit.room_name;
+
+            //         unit_data.warehouse_id = p.unit.warehouse_id;
+            //         unit_data.room_id = p.unit.room_id;
+            //         unit_data.cartoon_id = p.unit.cartoon_id;
+            //         unit_data.purchase_price = p.unit.purchase_price;
+            //     }
+
+            //     // Variant chosen from product card (e.g. variant_combination_key)
+            //     if (p.has_variants && variantPayload && variantPayload.variant_combination_key) {
+            //         let data = {
+            //             product_id: p.product_id || p.id,
+            //             variant_id: variantPayload.variant_id || null,
+            //             variant_combination_key: variantPayload.variant_combination_key,
+            //             qty: 1,
+            //             max_qty: variantPayload.max_qty || 0,
+            //             title: p.name,
+            //             image_url: p.image_url,
+            //             ...this.getPosPricingSnapshot(p),
+            //             ...unit_data,
+            //         };
+
+            //         this.addCartItem(data);
+            //         return;
+            //     }
+            //     this.addCartItem({
+            //         product_id: p.product_id || p.id,
+            //         variant_id: null,
+            //         product_note: '',
+            //         qty: 1,
+            //         max_qty:
+            //             p.max_qty != null && p.max_qty !== '' ? Number(p.max_qty) : Number(p.stock || 0),
+            //         title: p.name,
+            //         image_url: p.image_url,
+            //         ...this.getPosPricingSnapshot(p),
+            //         ...unit_data,
+            //     });
+            // },
+            // CART
+            // selectProduct: function (p, variantPayload = null) {
+            //     let unit_data = {};
+
+            //     if (p.unit) {
+            //         unit_data.unit_code = p.unit.code;
+
+            //         unit_data.warehouse_name = p.unit.warehouse_name;
+            //         unit_data.cartoon_name = p.unit.cartoon_name;
+            //         unit_data.room_name = p.unit.room_name;
+
+            //         unit_data.warehouse_id = p.unit.warehouse_id;
+            //         unit_data.room_id = p.unit.room_id;
+            //         unit_data.cartoon_id = p.unit.cartoon_id;
+            //         unit_data.purchase_price = p.unit.purchase_price;
+            //     }
+
+            //     const isVariantProduct =
+            //         p.has_variants &&
+            //         (p.product_variant_id || p.variant_combination_key || (variantPayload && variantPayload.variant_combination_key));
+
+            //     if (isVariantProduct) {
+            //         const variantKey =
+            //             p.variant_combination_key ||
+            //             variantPayload?.variant_combination_key ||
+            //             '';
+
+            //         console.log('Product has variants. Selected variant key:', JSON.stringify(p.prices));
+
+            //         const variantId =
+            //             p.product_variant_id ||
+            //             p.variant_id ||
+            //             variantPayload?.variant_id ||
+            //             null;
+
+            //         let data = {
+            //             product_id: p.product_id || p.id,
+            //             variant_id: variantId,
+            //             product_variant_id: variantId,
+            //             variant_combination_key: variantKey,
+            //             variant_name: p.variant_name || variantKey,
+
+            //             qty: 1,
+            //             max_qty: p.max_qty || variantPayload?.max_qty || p.stock || 0,
+
+            //             // product name + variant name
+            //             title: variantKey ? `${p.name} - ${variantKey}` : p.name,
+
+            //             image_url: p.image_url,
+
+            //             unit_price: Number(p.unit_price || 0),
+            //             main_price: Number(p.main_price || p.unit_price || 0),
+            //             discount_price: Number(p.discount_price || 0),
+
+            //             ...unit_data,
+            //         };
+
+            //         this.addCartItem(data);
+            //         return;
+            //     }
+
+            //     this.addCartItem({
+            //         product_id: p.product_id || p.id,
+            //         variant_id: null,
+            //         product_variant_id: null,
+            //         variant_combination_key: null,
+            //         variant_name: null,
+            //         product_note: '',
+            //         qty: 1,
+            //         max_qty: p.max_qty != null && p.max_qty !== ''
+            //             ? Number(p.max_qty)
+            //             : Number(p.stock || 0),
+            //         title: p.name,
+            //         image_url: p.image_url,
+            //         ...this.getPosPricingSnapshot(p),
+            //         ...unit_data,
+            //     });
+            // },
+            selectProduct: function (p, variantPayload = null) {
+                let unit_data = {};
+
+                if (p.unit) {
+                    unit_data.unit_code = p.unit.code;
+
+                    unit_data.warehouse_name = p.unit.warehouse_name;
+                    unit_data.cartoon_name = p.unit.cartoon_name;
+                    unit_data.room_name = p.unit.room_name;
+
+                    unit_data.warehouse_id = p.unit.warehouse_id;
+                    unit_data.room_id = p.unit.room_id;
+                    unit_data.cartoon_id = p.unit.cartoon_id;
+                    unit_data.purchase_price = p.unit.purchase_price;
+                    unit_data.serial_no = p.unit.serial_no || '';
+                    unit_data.imei_1 = p.unit.imei_1 || '';
+                    unit_data.imei_2 = p.unit.imei_2 || '';
+                    unit_data.supplier_warranty_start_date = p.unit.supplier_warranty_start_date || '';
+                    unit_data.supplier_warranty_end_date = p.unit.supplier_warranty_end_date || '';
+                    unit_data.customer_warranty_start_date = p.unit.customer_warranty_start_date || new Date().toISOString().split('T')[0];
+                    unit_data.customer_warranty_end_date = p.unit.customer_warranty_end_date || p.unit.supplier_warranty_end_date || '';
+                    unit_data.warranty_note = p.unit.warranty_note || '';
+                }
+
+                const isVariantProduct =
+                    p.has_variants &&
+                    (
+                        p.product_variant_id ||
+                        p.variant_combination_key ||
+                        p.variant_name ||
+                        (variantPayload && variantPayload.variant_combination_key)
+                    );
+
+                // if (isVariantProduct) {
+                //     const variantKey =
+                //         p.variant_name ||
+                //         p.variant_combination_key ||
+                //         variantPayload?.variant_combination_key ||
+                //         '';
+
+                //     const selectedPrice = (p.prices || []).find(item =>
+                //         item['pack-size'] == variantKey
+                //     );
+
+                //     console.log('Variant Key:', variantKey);
+                //     console.log('Selected Price:', selectedPrice.discount_price, selectedPrice.price);
+
+                //     const variantId =
+                //         p.product_variant_id ||
+                //         p.variant_id ||
+                //         variantPayload?.variant_id ||
+                //         selectedPrice?.id ||
+                //         null;
+
+                //     const variantMainPrice = Number(selectedPrice.price || 0);
+
+                //     const variantDiscountPrice = Number(selectedPrice.discount_price || 0);
+
+                //     const variantUnitPrice =
+                //         variantDiscountPrice > 0
+                //             ? variantDiscountPrice
+                //             : variantMainPrice;
+
+                //     let data = {
+                //         product_id: p.product_id || p.id,
+
+                //         variant_id: variantId,
+                //         product_variant_id: variantId,
+
+                //         variant_combination_key: variantKey,
+                //         variant_name: variantKey,
+
+                //         qty: 1,
+                //         max_qty: p.max_qty || variantPayload?.max_qty || p.stock || 0,
+
+                //         title: variantKey ? `${p.name} - ${variantKey}` : p.name,
+                //         image_url: p.image_url,
+
+
+
+                //         ...unit_data,
+                //         unit_price: variantUnitPrice,
+                //         main_price: variantMainPrice,
+                //         discount_price: variantDiscountPrice,
+                //     };
+
+                //     this.addCartItem(data);
+                //     return;
+                // }
+                if (isVariantProduct) {
+
+                    const variantIdFromPayload =
+                        p.product_variant_id ||
+                        p.variant_id ||
+                        (variantPayload && variantPayload.variant_id) ||
+                        null;
+
+                    const variantKey =
+                        p.variant_combination_key ||
+                        (variantPayload && variantPayload.variant_combination_key) ||
+                        p.variant_name ||
+                        '';
+
+                    // match variant from prices array
+                    const selectedPrice = (p.prices || []).find(item => {
+                        if (variantIdFromPayload && Number(item.id) === Number(variantIdFromPayload)) {
+                            return true;
+                        }
+
+                        if (
+                            variantKey &&
+                            item.combination_key &&
+                            String(item.combination_key).trim() === String(variantKey).trim()
+                        ) {
+                            return true;
+                        }
+
+                        const ignoreKeys = [
+                            'id',
+                            'combination_key',
+                            'variant_name',
+                            'price',
+                            'discount_price',
+                            'product_id',
+                            'sku',
+                            'barcode',
+                            'created_at',
+                            'updated_at'
+                        ];
+
+                        const itemKey = Object.keys(item)
+                            .filter(key => !ignoreKeys.includes(key))
+                            .map(key => item[key])
+                            .join('-');
+
+                        return String(itemKey).trim() === String(variantKey).trim();
+                    }) || {
+                        id: variantIdFromPayload,
+                        price: p.main_price || p.unit_price || 0,
+                        discount_price: p.discount_price || 0,
+                        combination_key: variantKey,
+                    };
+
+                    console.log('Variant Key:', variantKey);
+                    console.log('Selected Variant Price:', selectedPrice);
+
+                    if (!selectedPrice || !selectedPrice.id) {
+                        alert('Variant price not found');
+                        return;
+                    }
+
+                    const variantId =
+                        variantIdFromPayload ||
+                        selectedPrice.id ||
+                        null;
+
+                    const variantDisplayName =
+                        p.variant_name ||
+                        selectedPrice.variant_name ||
+                        variantKey;
+
+                    // actual variant prices
+                    const variantMainPrice = Number(
+                        selectedPrice.price || p.main_price || p.unit_price || 0
+                    );
+
+                    const variantDiscountPrice = Number(
+                        selectedPrice.discount_price || 0
+                    );
+
+                    // discount calculation
+                    const discountFixed =
+                        variantDiscountPrice > 0
+                            ? Math.max(0, variantMainPrice - variantDiscountPrice)
+                            : 0;
+
+                    let data = {
+                        product_id: p.product_id || p.id,
+
+                        variant_id: variantId,
+                        product_variant_id: variantId,
+
+                        variant_combination_key: variantKey,
+                        variant_name: variantDisplayName,
+
+                        qty: 1,
+
+                        max_qty:
+                            p.max_qty ||
+                            (variantPayload && variantPayload.max_qty) ||
+                            p.stock ||
+                            0,
+
+                        title: variantDisplayName
+                            ? `${p.name} - ${variantDisplayName}`
+                            : p.name,
+
+                        image_url: p.image_url,
+
+                        // IMPORTANT
+                        unit_price: variantMainPrice,
+
+                        main_price: variantMainPrice,
+
+                        discount_price:
+                            variantDiscountPrice > 0
+                                ? variantDiscountPrice
+                                : variantMainPrice,
+
+                        // pricing snapshot
+                        pos_main_price: variantMainPrice,
+                        pos_wholesale_price: variantMainPrice,
+                        pos_retail_price: variantMainPrice,
+
+                        // auto discount apply
+                        pos_catalog_discount: {
+                            type: 'fixed',
+                            percent: 0,
+                            fixed: discountFixed,
+                            value: discountFixed
+                        },
+
+                        discount: {
+                            type: 'fixed',
+                            percent: 0,
+                            fixed: discountFixed,
+                            value: discountFixed
+                        },
+
+                        ...unit_data,
+                    };
+
+                    console.log('Final Cart Data:', data);
+
+                    this.addCartItem(data);
+
+                    return;
+                }
+
+                this.addCartItem({
+                    product_id: p.product_id || p.id,
+                    variant_id: null,
+                    product_variant_id: null,
+                    variant_combination_key: null,
+                    variant_name: null,
+                    product_note: '',
+                    qty: 1,
+                    max_qty: p.max_qty != null && p.max_qty !== ''
+                        ? Number(p.max_qty)
+                        : Number(p.stock || 0),
+                    title: p.name,
+                    image_url: p.image_url,
+                    ...this.getPosPricingSnapshot(p),
+                    ...unit_data,
+                });
+            },
+            getPosPricingSnapshot(p) {
+                const main = Number(p.main_price != null ? p.main_price : p.unit_price || 0);
+                const wholesale = Number(p.wholesale_price != null ? p.wholesale_price : main);
+                const retail = Number(p.retail_price != null ? p.retail_price : main);
+                const discountPrice = Number(p.discount_price || 0);
+                let catalog = { percent: 0, fixed: 0, value: 0 };
+
+                if (discountPrice > 0 && discountPrice < main) {
+                    catalog = {
+                        type: 'fixed',
+                        percent: 0,
+                        fixed: Math.max(0, main - discountPrice),
+                        value: Math.max(0, main - discountPrice),
+                        amount: 0,
+                    };
+                } else if (p.discount && typeof p.discount === 'object') {
+                    catalog = JSON.parse(JSON.stringify(p.discount));
+                }
+
+                return {
+                    pos_main_price: main,
+                    pos_wholesale_price: wholesale,
+                    pos_retail_price: retail,
+                    pos_catalog_discount: catalog,
+                };
+            },
+            applyPricingForSelectedType(it) {
+                const t = this.selectedProductPriceType;
+
+                const main = Number(
+                    it.pos_main_price != null
+                        ? it.pos_main_price
+                        : it.main_price != null
+                            ? it.main_price
+                            : it.unit_price || 0
+                );
+
+                const wholesale = Number(
+                    it.pos_wholesale_price != null
+                        ? it.pos_wholesale_price
+                        : it.wholesale_price != null
+                            ? it.wholesale_price
+                            : main
+                );
+
+                const retail = Number(
+                    it.pos_retail_price != null
+                        ? it.pos_retail_price
+                        : it.retail_price != null
+                            ? it.retail_price
+                            : main
+                );
+
+                const cat = it.pos_catalog_discount || { percent: 0, fixed: 0, value: 0 };
+
+                if (t === 'wholesale_price') {
+                    it.unit_price = wholesale;
+                    it.discount = { type: 'fixed', percent: 0, fixed: 0, value: 0, amount: 0 };
+                } else if (t === 'retail_price') {
+                    it.unit_price = retail;
+                    it.discount = { type: 'fixed', percent: 0, fixed: 0, value: 0, amount: 0 };
+                } else {
+                    it.unit_price = main;
+
+                    const pct = Number(cat.percent || 0);
+                    const fix = Number(cat.fixed || 0);
+
+                    if (pct > 0) {
+                        it.discount = {
+                            type: 'percent',
+                            percent: pct,
+                            fixed: fix,
+                            value: pct,
+                            amount: 0,
+                        };
+                    } else if (fix > 0) {
+                        it.discount = {
+                            type: 'fixed',
+                            percent: 0,
+                            fixed: fix,
+                            value: fix,
+                            amount: 0,
+                        };
+                    } else {
+                        it.discount = {
+                            type: 'fixed',
+                            percent: 0,
+                            fixed: 0,
+                            value: 0,
+                            amount: 0,
+                        };
+                    }
+                }
+
+                this.recalcItem(it);
+            },
+            // applyPricingForSelectedType(it) {
+            //     const t = this.selectedProductPriceType;
+            //     const main = Number(
+            //         it.pos_main_price != null
+            //             ? it.pos_main_price
+            //             : it.main_price != null
+            //                 ? it.main_price
+            //                 : it.unit_price || 0,
+            //     );
+            //     const wholesale = Number(
+            //         it.pos_wholesale_price != null
+            //             ? it.pos_wholesale_price
+            //             : it.wholesale_price != null
+            //                 ? it.wholesale_price
+            //                 : main,
+            //     );
+            //     const retail = Number(
+            //         it.pos_retail_price != null
+            //             ? it.pos_retail_price
+            //             : it.retail_price != null
+            //                 ? it.retail_price
+            //                 : main,
+            //     );
+            //     const cat = it.pos_catalog_discount || { percent: 0, fixed: 0, value: 0 };
+
+            //     if (t === 'wholesale_price') {
+            //         it.unit_price = wholesale;
+            //         it.discount = { type: 'fixed', percent: 0, fixed: 0, value: 0 };
+            //     } else if (t === 'retail_price') {
+            //         it.unit_price = retail;
+            //         it.discount = { type: 'fixed', percent: 0, fixed: 0, value: 0 };
+            //     } else {
+            //         it.unit_price = main;
+            //         const pct = Number(cat.percent) || 0;
+            //         const fix = Number(cat.fixed) || 0;
+            //         if (fix > 0) {
+            //             it.discount = { type: 'fixed', percent: pct, fixed: fix, value: cat.value };
+            //         } else if (pct > 0) {
+            //             it.discount = { type: 'percent', percent: pct, fixed: 0, value: cat.value };
+            //         } else {
+            //             it.discount = { type: 'fixed', percent: 0, fixed: 0, value: 0 };
+            //         }
+            //     }
+            //     this.recalcItem(it);
+            // },
+            onProductPriceTypeChange() {
+                this.cart.forEach((it) => {
+                    this.applyPricingForSelectedType(it);
+                });
+            },
+            onAddFromSearch(r) {
+                const main = Number(r.main_price != null ? r.main_price : r.unit_price || 0);
+                let catalog = null;
+                if (r.discount_price && Number(r.discount_price) > 0 && Number(r.discount_price) < main) {
+                    catalog = {
+                        type: 'fixed',
+                        percent: 0,
+                        fixed: Math.max(0, main - Number(r.discount_price)),
+                        value: Math.max(0, main - Number(r.discount_price)),
+                        amount: 0,
+                    };
+                } else if (r.discount) {
+                    catalog = JSON.parse(JSON.stringify(r.discount));
+                } else if (r.discount_parcent) {
+                    catalog = {
+                        type: 'percent',
+                        percent: Number(r.discount_parcent) || 0,
+                        fixed: 0,
+                        value: Number(r.discount_parcent) || 0,
+                        amount: 0,
+                    };
+                } else {
+                    catalog = { percent: 0, fixed: 0, value: 0 };
+                }
+                this.addCartItem({
+                    product_id: r.product_id || r.id,
+                    variant_id: r.variant_id != null ? r.variant_id : null,
+                    qty: 1,
+                    max_qty: r.stock != null ? r.stock : r.max_qty || 0,
+                    title: r.title || r.name,
+                    image_url: r.image_url,
+                    pos_main_price: r.main_price != null ? Number(r.main_price) : main,
+                    pos_wholesale_price:
+                        r.wholesale_price != null ? Number(r.wholesale_price) : main,
+                    pos_retail_price: r.retail_price != null ? Number(r.retail_price) : main,
+                    pos_catalog_discount: catalog,
+                });
+                this.closeSearch();
+            },
+            addCartItem(item) {
+                const cloneObject = (value) =>
+                    value == null
+                        ? value
+                        : JSON.parse(JSON.stringify(value));
+
+                const attachSnapshotAndApplyPricing = (base) => {
+                    const main = Number(
+                        base.pos_main_price != null
+                            ? base.pos_main_price
+                            : base.main_price != null
+                                ? base.main_price
+                                : base.unit_price || 0,
+                    );
+                    const wholesale = Number(
+                        base.pos_wholesale_price != null
+                            ? base.pos_wholesale_price
+                            : base.wholesale_price != null
+                                ? base.wholesale_price
+                                : main,
+                    );
+                    const retail = Number(
+                        base.pos_retail_price != null
+                            ? base.pos_retail_price
+                            : base.retail_price != null
+                                ? base.retail_price
+                                : main,
+                    );
+                    let catalog = cloneObject(base.pos_catalog_discount);
+                    if (catalog == null && base.discount) {
+                        catalog = cloneObject(base.discount);
+                    }
+                    if (catalog == null) {
+                        catalog = { percent: 0, fixed: 0, value: 0 };
+                    }
+                    base.pos_main_price = main;
+                    base.pos_wholesale_price = wholesale;
+                    base.pos_retail_price = retail;
+                    base.pos_catalog_discount = catalog;
+                    base.discount = cloneObject(base.discount) || {
+                        type: 'fixed',
+                        percent: 0,
+                        fixed: 0,
+                        value: 0,
+                        amount: 0,
+                    };
+                    this.applyPricingForSelectedType(base);
+                };
+
+                const trimUnit = (u) =>
+                    u != null && String(u).trim() !== '' ? String(u).trim() : '';
+                const normVariantKey = (k) =>
+                    k == null || String(k).trim() === '' ? '' : String(k).trim();
+                // Treat null, '', 0, NaN as "no variant" so grid / API / PHP 0 all merge.
+                const normVariantId = (v) => {
+                    if (v == null || v === '' || v === false) return null;
+                    const n = Number(v);
+                    if (!Number.isFinite(n) || n <= 0) return null;
+                    return n;
+                };
+                const pidEq = (a, b) => String(a ?? '') === String(b ?? '');
+                const safeItem = cloneObject(item || {});
+
+                const ucItem = trimUnit(item.unit_code);
+                let existing = null;
+                // Barcode / unit-stock rows: merge on product + exact unit code first (ignores stray variant keys).
+                if (ucItem !== '') {
+                    existing = this.cart.find(
+                        (ci) => pidEq(ci.product_id, item.product_id) && trimUnit(ci.unit_code) === ucItem,
+                    );
+                }
+                if (!existing) {
+                    existing = this.cart.find((ci) => {
+                        if (!pidEq(ci.product_id, item.product_id)) return false;
+
+                        const keyA = normVariantKey(ci.variant_combination_key);
+                        const keyB = normVariantKey(item.variant_combination_key);
+                        if (keyA !== '' || keyB !== '') return keyA === keyB;
+
+                        const ucA = trimUnit(ci.unit_code);
+                        const ucB = trimUnit(item.unit_code);
+                        if (ucA !== '' && ucB !== '' && ucA !== ucB) return false;
+
+                        return normVariantId(ci.variant_id) === normVariantId(item.variant_id);
+                    });
+                }
+                if (existing) {
+                    const addQty = Math.max(1, parseInt(safeItem.qty, 10) || 1);
+                    let next = parseInt(existing.qty, 10);
+                    if (!Number.isFinite(next)) next = Math.floor(Number(existing.qty) || 0);
+                    next += addQty;
+                    let cap = parseInt(existing.max_qty, 10);
+                    if (!Number.isFinite(cap)) cap = Math.floor(Number(existing.max_qty) || 0);
+                    if (!Number.isFinite(cap) || cap <= 0) {
+                        const fromItem = parseInt(safeItem.max_qty, 10);
+                        if (Number.isFinite(fromItem) && fromItem > 0) cap = fromItem;
+                    }
+                    if (Number.isFinite(cap) && cap > 0 && next > cap) next = cap;
+                    this.$set(existing, 'qty', next);
+                    if (trimUnit(safeItem.unit_code) !== '' && trimUnit(existing.unit_code) === '') {
+                        existing.unit_code = safeItem.unit_code;
+                    }
+                    if (Number.isFinite(cap) && cap > 0 && existing.max_qty !== cap) {
+                        this.$set(existing, 'max_qty', cap);
+                    }
+                    this.recalcItem(existing);
+                } else {
+                    const ci = Object.assign({}, safeItem, {
+                        temp_id: 'ci-' + Date.now() + Math.random(),
+                        qty: safeItem.qty || 1,
+                        max_qty: safeItem.max_qty != null ? safeItem.max_qty : safeItem.stock || 0,
+                    });
+                    attachSnapshotAndApplyPricing(ci);
+                    this.cart.push(ci);
+                }
+                this.recalcTotals();
+            },
+            recalcItem(it) {
+                const qty = Number(it.qty || 0);
+                const unitPrice = Number(it.unit_price || 0);
+
+                if (!it.discount) {
+                    it.discount = {
+                        type: 'percent',
+                        percent: 0,
+                        fixed: 0,
+                        value: 0,
+                        amount: 0,
+                    };
+                }
+
+                let discountPerUnit = 0;
+
+                if (it.discount.type === 'percent') {
+                    const percent = Math.max(0, Number(it.discount.percent || 0));
+                    discountPerUnit = unitPrice * (percent / 100);
+
+                    it.discount.value = percent;
+                    it.discount.fixed = Math.round(discountPerUnit);
+                }
+
+                if (it.discount.type === 'fixed') {
+                    discountPerUnit = Math.max(0, Number(it.discount.fixed || 0));
+                    discountPerUnit = Math.min(discountPerUnit, unitPrice);
+
+                    it.discount.value = discountPerUnit;
+                    it.discount.percent = unitPrice > 0
+                        ? Number(((discountPerUnit / unitPrice) * 100).toFixed(1))
+                        : 0;
+                }
+
+                const roundedDiscountPerUnit = Math.round(discountPerUnit);
+                const finalUnitPrice = Math.max(0, Math.round(Math.max(0, unitPrice - roundedDiscountPerUnit) / 5) * 5);
+                const finalDiscountPerUnit = Math.max(0, unitPrice - finalUnitPrice);
+
+                it.discount.fixed = finalDiscountPerUnit;
+                it.discount_price = finalUnitPrice;
+                it.final_price = finalUnitPrice * qty;
+                it.discount.amount = finalDiscountPerUnit * qty;
+
+                this.recalcTotals();
+            },
+            onItemDiscountChange(it, mode) {
+                if (this.selectedProductPriceType !== 'product_price') {
+                    return;
+                }
+
+                if (!it.discount) {
+                    it.discount = {
+                        type: 'percent',
+                        percent: 0,
+                        fixed: 0,
+                        value: 0,
+                        amount: 0,
+                    };
+                }
+
+                it.discount.type = mode;
+
+                if (mode === 'percent') {
+                    it.discount.percent = Math.max(0, Number(it.discount.percent || 0));
+                }
+
+                if (mode === 'fixed') {
+                    it.discount.fixed = Math.max(0, Number(it.discount.fixed || 0));
+                }
+
+                this.recalcItem(it);
+            },
+            recalcTotals() {
+                this.setDeliveryChargeByType('no_recalc');
+
+                const subtotal = this.cart.reduce((sum, it) => {
+                    return sum + Number(it.final_price || 0);
+                }, 0);
+
+                let discountAmount = 0;
+
+                if (this.totals.discount.type === 'percent') {
+                    discountAmount = subtotal * (Number(this.totals.discount.value || 0) / 100);
+                }
+
+                if (this.totals.discount.type === 'fixed') {
+                    discountAmount = Number(this.totals.discount.value || 0);
+                }
+
+                discountAmount = Math.round(Math.max(0, Math.min(discountAmount, subtotal)));
+
+                const afterOrderDiscount = subtotal - discountAmount;
+
+                let couponAmount = 0;
+
+                if (this.coupon.type === 'fixed') {
+                    couponAmount = Number(this.coupon.value || 0);
+                }
+
+                if (this.coupon.type === 'percent') {
+                    couponAmount = afterOrderDiscount * (Number(this.coupon.percent || 0) / 100);
+                }
+
+                couponAmount = Math.round(Math.max(0, Math.min(couponAmount, afterOrderDiscount)));
+
+                const effectiveExtraCharge = this.useExtraChargeLines || this.extraChargeLines.length
+                    ? this.extraChargeLineTotal
+                    : Number(this.extra_charge || 0);
+
+                if (this.useExtraChargeLines || this.extraChargeLines.length) {
+                    this.extra_charge = effectiveExtraCharge;
+                }
+
+                const grand = Math.max(
+                    0,
+                    Math.round(
+                        afterOrderDiscount -
+                        couponAmount +
+                        effectiveExtraCharge +
+                        Number(this.delivery_charge || 0) -
+                        Number(this.round_off || 0)
+                    )
+                );
+
+                this.totals = {
+                    subtotal,
+                    discount: {
+                        type: this.totals.discount.type,
+                        value: Number(this.totals.discount.value || 0),
+                        amount: discountAmount,
+                    },
+                    coupon: {
+                        code: this.coupon.code,
+                        percent: Number(this.coupon.percent || 0),
+                        type: this.coupon.type,
+                        value: Number(this.coupon.value || 0),
+                        amount: couponAmount,
+                    },
+                    extra_charge: effectiveExtraCharge,
+                    extra_charge_lines: this.normalizeExtraChargeLines(this.extraChargeLines),
+                    delivery_charge: Number(this.delivery_charge || 0),
+                    round_off: Number(this.round_off || 0),
+                    grand_total: grand,
+                };
+            },
+            // recalcItem(it) {
+            //     const qty = Number(it.qty || 0);
+            //     let unit_price = Number(it.unit_price || 0);
+            //     let finalPrice = unit_price;
+
+            //     if (it.discount) {
+            //         const type = it.discount.type || 'percent';
+
+            //         if (type === 'percent') {
+            //             const percent = Number(it.discount.percent || 0);
+            //             finalPrice = Math.round(unit_price * (1 - percent / 100));
+            //             const fixed = Math.round(unit_price - finalPrice);
+            //             it.discount.fixed = Math.round(fixed);
+            //             it.discount.value = percent;
+            //         } else if (type === 'fixed') {
+            //             const fixed = Number(it.discount.fixed || 0);
+            //             finalPrice = Math.round(unit_price - fixed);
+            //             const percent = unit_price > 0 ? (fixed / unit_price) * 100 : 0;
+            //             // it.discount.percent = percent;
+            //             it.discount.value = percent;
+            //         }
+            //     }
+
+            //     const discFixed = Number((it.discount && it.discount.fixed) || 0);
+            //     it.discount_price = Math.round(unit_price - discFixed);
+            //     it.final_price = finalPrice * qty;
+            //     this.recalcTotals();
+            // },
+
+            // onItemDiscountChange(it, mode) {
+            //     if (this.selectedProductPriceType !== 'product_price') {
+            //         return;
+            //     }
+            //     const qty = Number(it.qty || 0);
+            //     const unitPrice = Number(it.unit_price || 0);
+            //     const gross = qty * unitPrice;
+
+            //     if (!it.discount) {
+            //         it.discount = { type: 'percent', percent: 0, fixed: 0, value: 0 };
+            //     }
+
+            //     if (mode === 'percent') {
+            //         it.discount.type = 'percent';
+            //         const percent = Number(it.discount.percent || 0);
+            //         const fixed = gross * (percent / 100);
+            //         it.discount.fixed = Math.round(fixed);
+            //     } else if (mode === 'fixed') {
+            //         it.discount.type = 'fixed';
+            //         const fixed = Number(it.discount.fixed || 0);
+            //         const percent = gross > 0 ? ((fixed / gross) * 100).toFixed(1) : 0;
+            //         it.discount.percent = percent;
+            //         // it.discount.percent = '';
+            //     }
+
+            //     this.recalcItem(it);
+            // },
+            // recalcTotals() {
+            //     this.setDeliveryChargeByType('no_recalc');
+
+            //     const subtotal = this.cart.reduce((sum, it) => sum + Number(it.final_price || 0), 0);
+            //     let discountAmount = 0;
+            //     if (this.totals.discount.type === 'percent') {
+            //         discountAmount = subtotal * (Number(this.totals.discount.value || 0) / 100);
+            //     } else if (this.totals.discount.type === 'fixed') {
+            //         discountAmount = Number(this.totals.discount.value || 0);
+            //     }
+            //     discountAmount = Math.floor(discountAmount);
+            //     discountAmount = Math.max(0, Math.min(discountAmount, subtotal));
+
+            //     let couponAmount = 0;
+            //     const afterDiscountBase = subtotal - discountAmount;
+            //     if (this.coupon.type === 'fixed' && (this.coupon.value || 0) > 0) {
+            //         couponAmount = Math.min(Number(this.coupon.value) || 0, afterDiscountBase);
+            //     } else if (this.coupon.type === 'percent' && (this.coupon.percent || 0) > 0) {
+            //         couponAmount = afterDiscountBase * (Number(this.coupon.percent) / 100);
+            //     }
+            //     couponAmount = Math.floor(couponAmount);
+            //     couponAmount = Math.max(0, couponAmount);
+
+            //     const afterDiscount = subtotal - discountAmount - couponAmount;
+            //     const grand =
+            //         afterDiscount +
+            //         Number(this.extra_charge || 0) +
+            //         Number(this.delivery_charge || 0) -
+            //         Number(this.round_off || 0);
+
+            //     this.totals = {
+            //         subtotal: subtotal,
+            //         discount: {
+            //             type: this.totals.discount.type,
+            //             value: this.totals.discount.value,
+            //             amount: discountAmount,
+            //         },
+            //         coupon: {
+            //             code: this.coupon.code,
+            //             percent: this.coupon.percent,
+            //             type: this.coupon.type,
+            //             value: this.coupon.value,
+            //             amount: couponAmount,
+            //         },
+            //         extra_charge: Number(this.extra_charge || 0),
+            //         delivery_charge: Number(this.delivery_charge || 0),
+            //         round_off: Number(this.round_off || 0),
+            //         grand_total: Number(grand || 0),
+            //     };
+
+            //     // Adjust advance amount if it exceeds available balance or due amount
+            //     if (this.useAdvance && this.selectedCustomer && this.selectedCustomer.advance) {
+            //         const basePayments = this.paymentMethods.reduce((sum, m) => {
+            //             return sum + (m.selected ? Number(m.amount || 0) : 0);
+            //         }, 0);
+            //         const dueAmount = this.totals.grand_total - basePayments;
+            //         const availableAdvance = Number(this.selectedCustomer.advance) || 0;
+
+            //         // Ensure advance doesn't exceed available balance or due amount
+            //         if (this.advanceAmount > availableAdvance) {
+            //             this.advanceAmount = availableAdvance;
+            //         }
+            //         if (this.advanceAmount > dueAmount) {
+            //             this.advanceAmount = Math.max(0, dueAmount);
+            //         }
+            //     }
+
+
+            // },
+
+            // COUPON
+            applyCoupon() {
+                if (!routes.applyCoupon) return;
+                this.loading.coupon = true;
+                this.post(routes.applyCoupon, {
+                    code: this.coupon.code,
+                    subtotal: this.totals.subtotal,
+                })
+                    .then((r) => {
+                        if (r.data && r.data.success) {
+                            const data = r.data.data || {};
+                            this.coupon.type = data.type === 'percent' ? 'percent' : 'fixed';
+                            this.coupon.value = Number(data.value) || 0;
+                            if (data.type === 'percent') {
+                                this.coupon.percent = this.coupon.value;
+                            } else {
+                                this.coupon.percent = 0;
+                            }
+                            this.recalcTotals();
+                        } else {
+                            this.s_alert((r.data && r.data.message) || 'Invalid coupon', 'error');
+                        }
+                    })
+                    .catch(() => {
+                        this.s_alert('Coupon apply failed', 'error');
+                    })
+                    .finally(() => {
+                        this.loading.coupon = false;
+                    });
+            },
+
+            searchCustomer: () => '',
+
+            // SAVE / HOLD / CANCEL
+            holdOrder() {
+                if (!routes.hold) return;
+                if (!this.cart.length) {
+                    this.s_alert('Cart is empty', 'warning');
+                    return;
+                }
+                this.loading.hold = true;
+                this.post(routes.hold, {
+                    cart: this.cart,
+                    totals: this.totals,
+                    customer: this.selectedCustomer,
+                    order_note: this.orderNote,
+                })
+                    .then((r) => {
+                        if (r.data && r.data.success) {
+                            this.s_alert('Order held. ID: ' + (r.data.data && r.data.data.id), 'success');
+                            this.clearCart();
+                            this.clearSavedOrder();
+                        } else {
+                            this.s_alert((r.data && r.data.message) || 'Hold failed', 'error');
+                        }
+                    })
+                    .catch(() => {
+                        this.s_alert('Hold failed', 'error');
+                    })
+                    .finally(() => {
+                        this.loading.hold = false;
+                    });
+            },
+            saveOrder() {
+                if (!this.cart.length) {
+                    this.s_alert('Cart is empty', 'warning');
+                    return;
+                }
+                try {
+                    const payload = this.serializeOrderState();
+                    window.localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(payload));
+                    this.hasSavedDraft = true;
+                    this.s_alert('Order saved locally. You can restore it later on this device.', 'success');
+                } catch (e) {
+                    console.error('Unable to save order locally', e);
+                    this.s_alert('Failed to save order locally.', 'error');
+                }
+            },
+            cancelOrder() {
+                this.s_confirm('Cancel order and clear cart?').then((ok) => {
+                    if (ok) {
+                        this.clearCart();
+                        this.clearSavedOrder();
+                    }
+                });
+            },
+            clearCart() {
+                this.cart = [];
+                this.orderNote = '';
+                // Reset all totals-related data (discount, coupon, charges, round off)
+                this.totals.discount.value = 0;
+                this.coupon = { code: '', percent: 0, type: '', value: 0 };
+                this.extra_charge = 0;
+                this.extraChargeLines = [];
+                this.useExtraChargeLines = false;
+                this.delivery_charge = 0;
+                this.round_off = 0;
+                // Reset advance and payment methods
+                this.useAdvance = false;
+                this.advanceAmount = 0;
+                this.paymentMethods.forEach((m) => { m.amount = 0; });
+                this.selectedSalesmanId = null;
+                this.affiliateCode = '';
+                this.recalcTotals();
+                this.setSelectedCustomer({ id: 1, name: 'Walking Customer', phone: '', email: '', address: '', image: null });
+
+                this.fetchProducts();
+                this.delivery_info = {
+                    delivery_method: '',
+                    expected_delivery_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    order_source: 'pos',
+                    order_note: '',
+                    outlet_id: '',
+                    courier_method: null,
+                    courier_method_title: '',
+                    delivery_provider_id: null,
+                    local_delivery_provider_id: null,
+                    local_delivery_provider_name: '',
+                    delivery_charge_type: '',
+                };
+            },
+            setCourierMethod(method) {
+                this.delivery_info.courier_method = method ? method.id : null;
+                this.delivery_info.courier_method_title = method ? method.title : '';
+                if (method) {
+                    this.delivery_info.delivery_provider_id = null;
+                    this.delivery_info.local_delivery_provider_id = null;
+                    this.delivery_info.local_delivery_provider_name = '';
+                }
+            },
+            setLocalDeliveryMethod(method) {
+                this.delivery_info.delivery_provider_id = method ? method.id : null;
+                this.delivery_info.local_delivery_provider_id = method ? method.id : null;
+                this.delivery_info.local_delivery_provider_name = method ? method.name : '';
+                if (method) {
+                    this.delivery_info.courier_method = null;
+                    this.delivery_info.courier_method_title = '';
+                }
+            },
+
+            // HOLD LIST
+            openHoldList() {
+                if (!routes.holds) return;
+                this.showHoldListModal = true;
+                this.loadHoldList();
+            },
+            closeHoldList() {
+                this.showHoldListModal = false;
+            },
+            loadHoldList() {
+                this.loading.holdList = true;
+                this.get(routes.holds)
+                    .then((r) => {
+                        if (r.data && r.data.success) {
+                            this.holdList = r.data.data || [];
+                        }
+                    })
+                    .catch(() => { })
+                    .finally(() => {
+                        this.loading.holdList = false;
+                    });
+            },
+            loadHold(id) {
+                if (!routes.getHold) return;
+                this.loading.hold = true;
+                const url = routes.getHold.replace('__ID__', id);
+                this.get(url)
+                    .then((r) => {
+                        if (r.data && r.data.success) {
+                            const data = r.data.data || {};
+                            this.cart = data.cart || [];
+                            this.totals = data.totals || this.totals;
+                            this.selectedCustomer = data.customer || null;
+                            this.orderNote = data.note || (data.hold && data.hold.meta ? data.hold.meta.note || '' : '') || '';
+                            this.showHoldListModal = false;
+                        }
+                    })
+                    .catch(() => { })
+                    .finally(() => {
+                        this.loading.hold = false;
+                    });
+            },
+
+            // PAYMENT MODAL
+            openPaymentModal() {
+                if (!this.cart.length) {
+                    this.s_alert('Cart is empty', 'warning');
+                    return;
+                }
+                if (!this.selectedCustomer) {
+                    this.s_alert('Select or create a customer before creating an order.', 'warning');
+                    return;
+                }
+                this.showPaymentModal = true;
+            },
+            closePaymentModal() {
+                this.showPaymentModal = false;
+            },
+            recalcPayment() {
+                // paymentTotal is computed
+            },
+
+            // Input value update handlers
+            updateCartValue(event, property, item) {
+                const value = parseFloat(event.target.value) || 0;
+                if (property === 'qty') {
+                    item.qty = Math.max(0, Math.floor(value));
+                    if (item.qty > item.max_qty) {
+                        item.qty = item.max_qty;
+                        event.target.value = item.qty;
+                    }
+                } else if (property === 'product_note') {
+                    item.product_note = event.target.value;
+                    return;
+                } else {
+                    item[property] = Math.max(0, value);
+                }
+
+                if (property === 'qty' || property === 'unit_price') {
+                    this.recalcItem(item);
+                }
+            },
+            updateDiscountValue(event, mode, item) {
+                if (this.selectedProductPriceType !== 'product_price') {
+                    return;
+                }
+                const value = parseFloat(event.target.value) || 0;
+                if (mode === 'percent') {
+                    item.discount.percent = Math.max(0, value);
+                } else {
+                    item.discount.fixed = Math.round(Math.max(0, value) / 5) * 5;
+                    event.target.value = item.discount.fixed;
+                }
+
+                this.onItemDiscountChange(item, mode);
+            },
+            updateValue(event, property) {
+                const raw = event.target.value;
+                if (property === 'totals.discount.value') {
+                    const value = parseFloat(raw) || 0;
+                    this.totals.discount.value = Math.max(0, value);
+                    this.recalcTotals();
+                    return;
+                }
+                if (property === 'round_off') {
+                    const value = raw === '' || raw === '-' ? null : parseFloat(raw);
+                    this.round_off = value === null || isNaN(value) ? 0 : value;
+                    this.recalcTotals();
+                    return;
+                }
+                if (property === 'extra_charge' && this.useExtraChargeLines) {
+                    event.target.value = this.extra_charge;
+                    return;
+                }
+                const value = parseFloat(raw) || 0;
+                this[property] = Math.max(0, value);
+                if (property === 'extra_charge') {
+                    this.recalcTotals();
+                }
+            },
+            incrementValue(event, property, item, step = 1) {
+                if (
+                    item &&
+                    (property === 'discount.percent' || property === 'discount.fixed') &&
+                    this.selectedProductPriceType !== 'product_price'
+                ) {
+                    return;
+                }
+                if (item) {
+                    // For cart items
+                    if (property.includes('.')) {
+                        const parts = property.split('.');
+                        const obj = item[parts[0]];
+                        const key = parts[1];
+                        const current = parseFloat(obj[key]) || 0;
+                        obj[key] = current + step;
+                        if (property === 'discount.percent' || property === 'discount.fixed') {
+                            this.onItemDiscountChange(item, key);
+                        } else {
+                            this.recalcItem(item);
+                        }
+                    } else {
+                        const current = property === 'qty'
+                            ? (parseInt(item[property]) || 0)
+                            : (parseFloat(item[property]) || 0);
+                        item[property] = current + step;
+                        if (property === 'qty' || property === 'unit_price') {
+                            this.recalcItem(item);
+                        }
+                    }
+                } else {
+                    // For data properties (including nested totals.discount.value)
+                    if (property === 'extra_charge' && this.useExtraChargeLines) {
+                        event.target.value = this.extra_charge;
+                        return;
+                    }
+                    if (property === 'totals.discount.value') {
+                        const current = parseFloat(this.totals.discount.value) || 0;
+                        this.totals.discount.value = Math.max(0, current + step);
+                        this.recalcTotals();
+                        event.target.value = this.totals.discount.value;
+                        return;
+                    }
+                    if (property === 'round_off') {
+                        const current = parseFloat(this.round_off) || 0;
+                        const stepRound = 0.01;
+                        this.round_off = current + stepRound;
+                        this.recalcTotals();
+                        event.target.value = this.round_off;
+                        return;
+                    }
+                    const current = parseFloat(this[property]) || 0;
+                    this[property] = current + step;
+                    if (property === 'extra_charge') {
+                        this.recalcTotals();
+                    }
+                }
+                // Update the input value
+                event.target.value = item
+                    ? (property.includes('.')
+                        ? item[property.split('.')[0]][property.split('.')[1]]
+                        : item[property])
+                    : (property === 'totals.discount.value' ? this.totals.discount.value : property === 'round_off' ? this.round_off : this[property]);
+
+                if (item && property === 'qty' && item.qty > item.max_qty) {
+                    item.qty = item.max_qty;
+                    event.target.value = item.qty;
+                }
+            },
+            decrementValue(event, property, item, step = 1) {
+                if (
+                    item &&
+                    (property === 'discount.percent' || property === 'discount.fixed') &&
+                    this.selectedProductPriceType !== 'product_price'
+                ) {
+                    return;
+                }
+                if (item) {
+                    // For cart items
+                    if (property.includes('.')) {
+                        const parts = property.split('.');
+                        const obj = item[parts[0]];
+                        const key = parts[1];
+                        const current = parseFloat(obj[key]) || 0;
+                        const newValue = Math.max(0, current - step);
+                        obj[key] = newValue;
+                        if (property === 'discount.percent' || property === 'discount.fixed') {
+                            this.onItemDiscountChange(item, key);
+                        } else {
+                            this.recalcItem(item);
+                        }
+                        event.target.value = newValue;
+                    } else {
+                        const current = property === 'qty'
+                            ? (parseInt(item[property]) || 0)
+                            : (parseFloat(item[property]) || 0);
+                        const newValue = Math.max(0, current - step);
+                        item[property] = newValue;
+                        if (property === 'qty' || property === 'unit_price') {
+                            this.recalcItem(item);
+                        }
+                        event.target.value = newValue;
+                    }
+                } else {
+                    // For data properties (including nested totals.discount.value)
+                    if (property === 'extra_charge' && this.useExtraChargeLines) {
+                        event.target.value = this.extra_charge;
+                        return;
+                    }
+                    if (property === 'totals.discount.value') {
+                        const current = parseFloat(this.totals.discount.value) || 0;
+                        const newValue = Math.max(0, current - step);
+                        this.totals.discount.value = newValue;
+                        this.recalcTotals();
+                        event.target.value = newValue;
+                        return;
+                    }
+                    if (property === 'round_off') {
+                        const current = parseFloat(this.round_off) || 0;
+                        const stepRound = 0.01;
+                        const newValue = current - stepRound;
+                        this.round_off = newValue;
+                        this.recalcTotals();
+                        event.target.value = this.round_off;
+                        return;
+                    }
+                    const current = parseFloat(this[property]) || 0;
+                    const newValue = Math.max(0, current - step);
+                    this[property] = newValue;
+                    if (property === 'extra_charge') {
+                        this.recalcTotals();
+                    }
+                    event.target.value = newValue;
+                }
+
+                if (item && property === 'qty' && item.qty > item.max_qty) {
+                    item.qty = item.max_qty;
+                    event.target.value = item.qty;
+                }
+            },
+
+            // Payment input handlers
+            getPaymentMaxAmount(method) {
+                // Calculate remaining due amount
+                const otherPayments = this.paymentMethods.reduce((sum, m) => {
+                    if (m.id !== method.id && m.selected) {
+                        return sum + (parseFloat(m.amount) || 0);
+                    }
+                    return sum;
+                }, 0);
+
+                const advance = this.useAdvance ? (Number(this.advanceAmount) || 0) : 0;
+
+                const remaining = this.totals.grand_total - otherPayments - advance;
+                return Math.max(0, remaining);
+            },
+            updatePaymentValue(event, method) {
+                let value = parseFloat(event.target.value) || 0;
+                const maxAmount = this.getPaymentMaxAmount(method);
+
+                // Limit to remaining due amount
+                if (value > maxAmount) {
+                    value = maxAmount;
+                    event.target.value = value;
+                }
+
+                // Ensure non-negative
+                value = Math.max(0, value);
+                method.amount = value;
+
+                // Recalculate to ensure total doesn't exceed grand total
+                // Get total of all other payment methods
+                const otherPayments = this.paymentMethods.reduce((sum, m) => {
+                    if (m.id !== method.id && m.selected) {
+                        return sum + (parseFloat(m.amount) || 0);
+                    }
+                    return sum;
+                }, 0);
+
+                const advance = this.useAdvance ? (Number(this.advanceAmount) || 0) : 0;
+
+                const totalPaid = otherPayments + method.amount + advance;
+
+                // If total exceeds grand total, adjust this method
+                if (totalPaid > this.totals.grand_total) {
+                    const excess = totalPaid - this.totals.grand_total;
+                    method.amount = Math.max(0, method.amount - excess);
+                    event.target.value = method.amount;
+                }
+            },
+            incrementPaymentValue(event, method, step = 1) {
+                const current = parseFloat(method.amount) || 0;
+                const maxAmount = this.getPaymentMaxAmount(method);
+                const newValue = Math.min(maxAmount, current + step);
+                method.amount = newValue;
+                event.target.value = newValue;
+            },
+            decrementPaymentValue(event, method, step = 1) {
+                const current = parseFloat(method.amount) || 0;
+                const newValue = Math.max(0, current - step);
+                method.amount = newValue;
+                event.target.value = newValue;
+            },
+            onPaymentFocus(event, method) {
+                const dueAmount = this.getPaymentMaxAmount(method);
+                method.amount = dueAmount;
+                event.target.value = dueAmount;
+                this.$nextTick(() => {
+                    event.target.select();
+                });
+            },
+            onAdvanceCheckboxChange() {
+                if (this.useAdvance) {
+                    // Calculate default advance amount
+                    const basePayments = this.paymentMethods.reduce((sum, m) => {
+                        return sum + (m.selected ? Number(m.amount || 0) : 0);
+                    }, 0);
+                    const dueAmount = this.totals.grand_total - basePayments;
+                    const availableAdvance = this.selectedCustomer && this.selectedCustomer.advance
+                        ? Number(this.selectedCustomer.advance)
+                        : 0;
+
+                    // Default: due amount if customer has enough advance, otherwise available advance
+                    if (dueAmount > 0 && availableAdvance > 0) {
+                        this.advanceAmount = Math.min(dueAmount, availableAdvance);
+                    } else {
+                        this.advanceAmount = 0;
+                    }
+                } else {
+                    this.advanceAmount = 0;
+                }
+                this.recalcTotals();
+            },
+            updateAdvanceAmount(event) {
+                let value = parseFloat(event.target.value) || 0;
+                const availableAdvance = this.selectedCustomer && this.selectedCustomer.advance
+                    ? Number(this.selectedCustomer.advance)
+                    : 0;
+
+                // Limit to available advance
+                if (value > availableAdvance) {
+                    value = availableAdvance;
+                    event.target.value = value;
+                }
+
+                // Ensure non-negative
+                value = Math.max(0, value);
+                this.advanceAmount = value;
+
+                // Recalculate totals
+                this.recalcTotals();
+            },
+            onAdvanceFocus(event) {
+                const basePayments = this.paymentMethods.reduce((sum, m) => {
+                    return sum + (m.selected ? Number(m.amount || 0) : 0);
+                }, 0);
+                const dueAmount = this.totals.grand_total - basePayments;
+                const availableAdvance = this.selectedCustomer && this.selectedCustomer.advance
+                    ? Number(this.selectedCustomer.advance)
+                    : 0;
+
+                // Set to due amount if customer has enough, otherwise available advance
+                if (dueAmount > 0 && availableAdvance > 0) {
+                    this.advanceAmount = Math.min(dueAmount, availableAdvance);
+                } else if (availableAdvance > 0) {
+                    this.advanceAmount = availableAdvance;
+                } else {
+                    this.advanceAmount = 0;
+                }
+
+                event.target.value = this.advanceAmount;
+                this.$nextTick(() => {
+                    event.target.select();
+                });
+            },
+            serializeOrderState() {
+                return {
+                    timestamp: new Date().toISOString(),
+                    cart: this.cart,
+                    totals: this.totals,
+                    customer: this.selectedCustomer,
+                    coupon: this.coupon,
+                    extra_charge: this.extra_charge,
+                    extraChargeLines: this.normalizeExtraChargeLines(this.extraChargeLines),
+                    useExtraChargeLines: this.useExtraChargeLines,
+                    delivery_charge: this.delivery_charge,
+                    round_off: this.round_off,
+                    selectedWarehouseId: this.selectedWarehouseId,
+                    selectedSalesmanId: this.selectedSalesmanId,
+                    affiliateCode: this.affiliateCode,
+                    order_note: this.orderNote,
+                };
+            },
+            checkForSavedOrder(autoPrompt = false) {
+                if (!window.localStorage) return;
+                try {
+                    const raw = window.localStorage.getItem(LOCAL_SAVE_KEY);
+                    if (!raw) {
+                        this.hasSavedDraft = false;
+                        return;
+                    }
+                    const data = JSON.parse(raw);
+                    if (!data || !Array.isArray(data.cart) || !data.cart.length) {
+                        this.hasSavedDraft = false;
+                        return;
+                    }
+                    this.hasSavedDraft = true;
+                    if (autoPrompt && !this.cart.length) {
+                        this.s_confirm('A locally saved POS order was found. Restore it now?').then((shouldRestore) => {
+                            if (shouldRestore) {
+                                this.applySavedOrder(data);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Unable to restore saved POS order', e);
+                }
+            },
+            restoreSavedOrder() {
+                if (!window.localStorage) return;
+                try {
+                    const raw = window.localStorage.getItem(LOCAL_SAVE_KEY);
+                    if (!raw) {
+                        this.s_alert('No saved order found.', 'info');
+                        this.hasSavedDraft = false;
+                        return;
+                    }
+                    const data = JSON.parse(raw);
+                    if (!data || !Array.isArray(data.cart) || !data.cart.length) {
+                        this.s_alert('Saved order is empty or invalid.', 'warning');
+                        this.hasSavedDraft = false;
+                        return;
+                    }
+                    this.applySavedOrder(data);
+                } catch (e) {
+                    console.warn('Unable to restore saved POS order', e);
+                    this.s_alert('Failed to restore saved order.', 'error');
+                }
+            },
+            applySavedOrder(data) {
+                this.cart = data.cart || [];
+                this.totals = data.totals || this.totals;
+                this.selectedCustomer = data.customer || null;
+                this.coupon = data.coupon || this.coupon;
+                this.extraChargeLines = this.normalizeExtraChargeLines(data.extraChargeLines || (data.totals && data.totals.extra_charge_lines) || []);
+                this.useExtraChargeLines = !!data.useExtraChargeLines || this.extraChargeLines.length > 0;
+                this.extra_charge = data.extra_charge || 0;
+                this.delivery_charge = data.delivery_charge || 0;
+                this.round_off = data.round_off || 0;
+                if (data.selectedWarehouseId) {
+                    this.selectedWarehouseId = data.selectedWarehouseId;
+                }
+                this.orderNote = data.order_note || '';
+                this.selectedSalesmanId = data.selectedSalesmanId || null;
+                this.affiliateCode = data.affiliateCode || '';
+                this.recalcTotals();
+                this.hasSavedDraft = false;
+            },
+            clearSavedOrder() {
+                if (!window.localStorage) return;
+                try {
+                    window.localStorage.removeItem(LOCAL_SAVE_KEY);
+                    this.hasSavedDraft = false;
+                } catch (e) {
+                    console.warn('Unable to clear saved POS order', e);
+                }
+            },
+
+            // PREVIEW & PRINT
+            previewOrder() {
+                if (!routes.preview) return;
+                const slug = this.currentOrderSlug || null;
+                let payload;
+                if (slug) {
+                    payload = { order_slug: slug };
+                } else {
+                    if (!this.cart.length) {
+                        this.s_alert('Cart is empty', 'warning');
+                        return;
+                    }
+                    payload = {
+                        cart: this.cart,
+                        totals: this.totals,
+                        customer: this.selectedCustomer,
+                        order_note: this.orderNote,
+                    };
+                }
+                this.post(routes.preview, payload)
+                    .then((r) => {
+                        const html = r.data && r.data.data ? r.data.data.html : null;
+                        if (!html) return;
+                        const w = window.open('', '_blank', 'width=900,height=700');
+                        w.document.write(html);
+                    })
+                    .catch(() => { });
+            },
+            printPosPreview() {
+                if (!routes.print) return;
+                const slug = this.currentOrderSlug || null;
+                if (!slug) {
+                    this.s_alert('Order not created yet. Submit first to print.', 'warning');
+                    return;
+                }
+                const url = routes.print.replace('__SLUG__', slug);
+                this.get(url)
+                    .then((r) => {
+                        const html = r.data && r.data.data ? r.data.data.html : null;
+                        if (!html) return;
+                        const w = window.open('', '_blank', 'width=900,height=700');
+                        w.document.write(html);
+                        w.print();
+                    })
+                    .catch(() => { });
+            },
+            printA4Preview() {
+                const slug = this.currentOrderSlug || null;
+                if (!slug || !routes.invoiceUrlBase) {
+                    this.s_alert('Order not created yet. Submit first to print.', 'warning');
+                    return;
+                }
+                const url = routes.invoiceUrlBase.replace('__SLUG__', slug);
+                window.open(url, '_blank');
+            },
+
+            s_alert(title = '', icon = 'info', text = null) {
+                const opts = { title, icon, allowOutsideClick: false, allowEscapeKey: false };
+                if (text) opts.text = text;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire(opts);
+                } else {
+                    alert(title);
+                }
+            },
+
+            // SUBMIT ORDER
+            submitOrder() {
+                const submitRoute = this.isEditMode ? routes.editOrder : routes.createOrder;
+                if (!submitRoute) return;
+                if (!this.cart.length) {
+                    this.s_alert('Cart is empty', 'warning');
+                    return;
+                }
+                if (!this.selectedCustomer) {
+                    this.s_alert('Select or create a customer before submitting.', 'warning');
+                    return;
+                }
+
+                this.loading.order = true;
+                this.recalcTotals();
+
+                const payload = {
+                    action: this.isEditMode ? 'update' : 'create',
+                    order_id: this.isEditMode ? this.currentOrderId : null,
+                    quotation_id: this.quotationId || null,
+                    cart: this.cart,
+                    totals: {
+                        ...this.totals,
+                        paid: this.paymentTotal,
+                        due: this.totals.grand_total - this.paymentTotal,
+                        total_purchase_price: this.totalPurchasePrice,
+                    },
+                    customer: this.selectedCustomer,
+                    payments: this.paymentMethods
+                        .filter((m) => m.selected && m.amount > 0)
+                        .map((m) => ({
+                            method: m.id,
+                            amount: m.amount,
+                            payment_type_id: m.payment_type_id || null
+                        })),
+                    use_advance: this.useAdvance,
+                    advance_amount: this.useAdvance ? this.advanceAmount : 0,
+                    order_note: this.orderNote,
+                    order_source: this.quotationId ? 'quotation' : 'pos',
+                    delivery_info: this.delivery_info,
+                    order_status: this.order_status,
+                    salesman_id: this.selectedSalesmanId || null,
+                    affiliate_code: this.affiliateCode || null,
+                    // sms send option
+                    sms_send_to_customer: this.smsSendToCustomer,
+                };
+
+                this.post(submitRoute, payload)
+                    .then((r) => {
+                        // console.log('Order submit response:', r);
+                        if (r.data && r.data.success) {
+                            const data = r.data.data || {};
+                            const wasEditMode = this.isEditMode;
+                            if (data.order_id) {
+                                this.currentOrderId = data.order_id;
+                            }
+                            this.currentOrderSlug = data.order_slug;
+                            this.clearCart();
+                            if (wasEditMode) {
+                                this.isEditMode = false;
+                                this.currentOrderId = null;
+                                const url = new URL(window.location.href);
+                                url.searchParams.delete('order_id');
+                                url.searchParams.delete('edit_order_id');
+                                window.history.replaceState({}, '', url.toString());
+                            }
+                            // if (routes.print && data.order_slug) {
+                            //     const url = routes.print.replace('__SLUG__', data.order_slug);
+                            //     this.get(url)
+                            //         .then((resp) => {
+                            //             const html = resp.data && resp.data.data ? resp.data.data.html : null;
+                            //             if (!html) return;
+                            //             const w = window.open('', '_blank', 'width=900,height=700');
+                            //             w.document.write(html);
+                            //             w.print();
+                            //         })
+                            //         .catch(() => { });
+                            // }
+                            window.open(data.print_url, '_blank');
+                        } else {
+                            this.s_alert((r.data && r.data.message) || (this.isEditMode ? 'Order update failed' : 'Order creation failed'), 'error');
+                        }
+                    })
+                    .catch((e) => {
+                        const msg = (e.response && e.response.data && e.response.data.message)
+                            ? e.response.data.message
+                            : (e.message || 'Unknown error');
+                        this.s_alert(this.isEditMode ? 'Order update failed' : 'Order creation failed', 'error', msg);
+                    })
+                    .finally(() => {
+                        this.loading.order = false;
+                    });
+            },
+
+            /**
+             * Calculate Steadfast Courier delivery charge
+             * @param {boolean} inside_city - true = Inside Dhaka, false = Outside Dhaka
+             * @param {number} outside_city - this will not be used if inside_city is true (for clarity)
+             * @param {number[]} weights - weight array (kg), e.g. [0.5, 1.2, 3]
+             * @returns {number} total delivery charge (only courier charge, COD 1% extra to add)
+             */
+            getSteadfastDeliveryCharge(inside_city, weights) {
+                // base charge (1kg / 1kg)
+                const baseInside = 70;
+                const baseOutside = 130;
+
+                // extra charge per kg (approx 20-25 taka)
+                const extraPerKg = 20;
+
+                const minCharge = 0; // 50 or 80 
+
+                let total = 0;
+
+                weights.forEach(weight => {
+                    let charge = 0;
+
+                    if (weight <= 0) return; // invalid skip
+
+                    const base = inside_city ? baseInside : baseOutside;
+
+                    if (weight <= 1) {
+                        charge = base;
+                    } else {
+                        const extraKg = weight - 1;
+                        charge = base + (Math.ceil(extraKg) * extraPerKg);
+                    }
+
+                    total += Math.max(charge, minCharge);
+                });
+
+                return total;
+            },
+            setDeliveryChargeByType(is_recalc = 1, update_delivery_charge = false) {
+                const type = this.delivery_info.delivery_charge_type;
+                if (!type) {
+                    this.delivery_charge = 0;
+                    return;
+                }
+                if (update_delivery_charge) {
+                    const weights = this.cart.map(item => (item.weight || .5) * item.qty);
+                    this.delivery_charge = this.getSteadfastDeliveryCharge(type === 'inside_city', weights);
+                }
+                if (is_recalc != 'no_recalc') {
+                    this.recalcTotals();
+                }
+            }
+        },
+    });
+});

@@ -1,0 +1,117 @@
+.pos-v3-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 8px;
+}
+
+.pos-v3-header__strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.pos-v3-header__menu {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.pos-v3-header__controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.pos-v3-header__field--inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.pos-v3-header__inline-label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pos-v3-text-muted);
+    white-space: nowrap;
+}
+
+.pos-v3-header__field--inline .pos-v3-select--compact {
+    width: auto;
+    min-width: 150px;
+    max-width: 220px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.pos-v3-header__mode {
+    font-size: 11px;
+    color: var(--pos-v3-text-muted);
+    white-space: nowrap;
+    text-transform: capitalize;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #f3f4f6;
+}
+
+.pos-v3-header__loading {
+    margin-left: 4px;
+    font-size: 11px;
+}
+
+.pos-v3-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--pos-v3-border);
+    border-radius: var(--pos-v3-radius-sm);
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+}
+
+.pos-v3-icon-btn:hover {
+    background: #f8fafc;
+    color: var(--pos-v3-accent);
+}
+
+.pos-v3-icon-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.pos-v3-input--compact {
+    padding: 4px 8px;
+    font-size: 12px;
+    min-height: 30px;
+}
+
+.pos-v3-select--compact {
+    min-height: 30px;
+}
+
+@media (max-width: 900px) {
+    .pos-v3-header__controls-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pos-v3-header__field--inline {
+        width: 100%;
+    }
+
+    .pos-v3-header__field--inline .pos-v3-select--compact {
+        flex: 1;
+        max-width: none;
+    }
+}

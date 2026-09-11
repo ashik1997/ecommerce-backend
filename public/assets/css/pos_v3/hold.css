@@ -1,0 +1,126 @@
+.pos-v3-hold-actions {
+    border: 1px solid var(--pos-v3-border);
+    border-top: none;
+    background: #fff;
+    padding: 10px 14px;
+}
+
+.pos-v3-hold-actions.is-loading {
+    opacity: 0.92;
+}
+
+.pos-v3-hold-actions__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.pos-v3-hold-actions__hint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--pos-v3-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pos-v3-hold-actions__link {
+    border: none;
+    background: transparent;
+    color: var(--pos-v3-accent);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.pos-v3-hold-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.pos-v3-hold-modal__dialog {
+    width: min(720px, 100%);
+    max-height: calc(100vh - 40px);
+    background: #fff;
+    border-radius: var(--pos-v3-radius);
+    box-shadow: var(--pos-v3-shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pos-v3-hold-modal__header,
+.pos-v3-hold-modal__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--pos-v3-border);
+}
+
+.pos-v3-hold-modal__footer {
+    border-bottom: none;
+    border-top: 1px solid var(--pos-v3-border);
+}
+
+.pos-v3-hold-modal__title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.pos-v3-hold-modal__close {
+    border: none;
+    background: transparent;
+    font-size: 24px;
+    line-height: 1;
+    color: #64748b;
+    cursor: pointer;
+}
+
+.pos-v3-hold-modal__body {
+    padding: 0 16px;
+    overflow: auto;
+    min-height: 220px;
+}
+
+.pos-v3-hold-modal__body.is-loading {
+    opacity: 0.7;
+}
+
+.pos-v3-hold-modal__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.pos-v3-hold-modal__table th,
+.pos-v3-hold-modal__table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: left;
+}
+
+.pos-v3-hold-modal__table th {
+    font-size: 12px;
+    color: var(--pos-v3-text-muted);
+    font-weight: 600;
+}
+
+.pos-v3-hold-modal__empty {
+    padding: 40px 0;
+    text-align: center;
+    color: var(--pos-v3-text-muted);
+}
+
+.pos-v3-checkout-stack .pos-v3-order-actions {
+    border-top: none;
+}

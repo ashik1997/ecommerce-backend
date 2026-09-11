@@ -1,0 +1,438 @@
+{
+    "id": 6005,
+    "name": "Acer Nitro VG270 X1 27\" FHD 200Hz IPS Gaming Monitor",
+    "price": 23000,
+    "image": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+    "stock": 600,
+    "variant_info": {
+        "variant_type": "combination",
+        "product": {
+            "id": 6005,
+            "name": "Acer Nitro VG270 X1 27\" FHD 200Hz IPS Gaming Monitor",
+            "slug": null,
+            "price": 23000,
+            "discount_price": 0,
+            "effective_price": 23000,
+            "image_url": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+            "total_stock": 600
+        },
+        "combinations": [
+            {
+                "id": 16,
+                "combination_key": "Green-L",
+                "attributes": {
+                    "color": "Green",
+                    "size": "L"
+                },
+                "display": "Green • L",
+                "price": 23000,
+                "discount_price": 0,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/media/2026/02/image-2026-02-28-010_YQ6QLZZl.png",
+                "stock": 100,
+                "warehouse_stocks": [
+                    {
+                        "id": 1,
+                        "name": "GULSHAN",
+                        "stock": 100
+                    }
+                ],
+                "room_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "name": "Motiheel Warehouse Room",
+                        "stock": 100
+                    }
+                ],
+                "cartoon_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "room_id": 1,
+                        "stock": 100
+                    }
+                ]
+            },
+            {
+                "id": 17,
+                "combination_key": "Green-M",
+                "attributes": {
+                    "color": "Green",
+                    "size": "M"
+                },
+                "display": "Green • M",
+                "price": 23000,
+                "discount_price": 0,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/media/2026/02/image-2026-02-28-010_YQ6QLZZl.png",
+                "stock": 100,
+                "warehouse_stocks": [
+                    {
+                        "id": 1,
+                        "name": "GULSHAN",
+                        "stock": 100
+                    }
+                ],
+                "room_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "name": "Motiheel Warehouse Room",
+                        "stock": 100
+                    }
+                ],
+                "cartoon_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "room_id": 1,
+                        "stock": 100
+                    }
+                ]
+            },
+            {
+                "id": 18,
+                "combination_key": "Green-S",
+                "attributes": {
+                    "color": "Green",
+                    "size": "S"
+                },
+                "display": "Green • S",
+                "price": 23000,
+                "discount_price": 0,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/media/2026/02/image-2026-02-28-010_YQ6QLZZl.png",
+                "stock": 100,
+                "warehouse_stocks": [
+                    {
+                        "id": 1,
+                        "name": "GULSHAN",
+                        "stock": 100
+                    }
+                ],
+                "room_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "name": "Motiheel Warehouse Room",
+                        "stock": 100
+                    }
+                ],
+                "cartoon_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "room_id": 1,
+                        "stock": 100
+                    }
+                ]
+            },
+            {
+                "id": 19,
+                "combination_key": "yellow-L",
+                "attributes": {
+                    "color": "yellow",
+                    "size": "L"
+                },
+                "display": "yellow • L",
+                "price": 23000,
+                "discount_price": 0,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/media/2026/02/image-2026-02-28-010_aAxZE7kC.png",
+                "stock": 100,
+                "warehouse_stocks": [
+                    {
+                        "id": 1,
+                        "name": "GULSHAN",
+                        "stock": 100
+                    }
+                ],
+                "room_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "name": "Motiheel Warehouse Room",
+                        "stock": 100
+                    }
+                ],
+                "cartoon_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "room_id": 1,
+                        "stock": 100
+                    }
+                ]
+            },
+            {
+                "id": 20,
+                "combination_key": "yellow-M",
+                "attributes": {
+                    "color": "yellow",
+                    "size": "M"
+                },
+                "display": "yellow • M",
+                "price": 23000,
+                "discount_price": 0,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/media/2026/02/image-2026-02-28-010_aAxZE7kC.png",
+                "stock": 100,
+                "warehouse_stocks": [
+                    {
+                        "id": 1,
+                        "name": "GULSHAN",
+                        "stock": 100
+                    }
+                ],
+                "room_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "name": "Motiheel Warehouse Room",
+                        "stock": 100
+                    }
+                ],
+                "cartoon_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "room_id": 1,
+                        "stock": 100
+                    }
+                ]
+            },
+            {
+                "id": 21,
+                "combination_key": "yellow-S",
+                "attributes": {
+                    "color": "yellow",
+                    "size": "S"
+                },
+                "display": "yellow • S",
+                "price": 23000,
+                "discount_price": 0,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/media/2026/02/image-2026-02-28-010_aAxZE7kC.png",
+                "stock": 100,
+                "warehouse_stocks": [
+                    {
+                        "id": 1,
+                        "name": "GULSHAN",
+                        "stock": 100
+                    }
+                ],
+                "room_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "name": "Motiheel Warehouse Room",
+                        "stock": 100
+                    }
+                ],
+                "cartoon_stocks": [
+                    {
+                        "id": 1,
+                        "warehouse_id": 1,
+                        "room_id": 1,
+                        "stock": 100
+                    }
+                ]
+            },
+            {
+                "id": 30,
+                "combination_key": "4GB-265GB",
+                "attributes": {
+                    "ram": "4GB",
+                    "storage": "265GB"
+                },
+                "display": "4GB • 265GB",
+                "price": 23000,
+                "discount_price": null,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+                "stock": 0,
+                "warehouse_stocks": [],
+                "room_stocks": [],
+                "cartoon_stocks": []
+            },
+            {
+                "id": 31,
+                "combination_key": "4GB-512GB",
+                "attributes": {
+                    "ram": "4GB",
+                    "storage": "512GB"
+                },
+                "display": "4GB • 512GB",
+                "price": 23000,
+                "discount_price": null,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+                "stock": 0,
+                "warehouse_stocks": [],
+                "room_stocks": [],
+                "cartoon_stocks": []
+            },
+            {
+                "id": 32,
+                "combination_key": "4GB-1TB",
+                "attributes": {
+                    "ram": "4GB",
+                    "storage": "1TB"
+                },
+                "display": "4GB • 1TB",
+                "price": 23000,
+                "discount_price": null,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+                "stock": 0,
+                "warehouse_stocks": [],
+                "room_stocks": [],
+                "cartoon_stocks": []
+            },
+            {
+                "id": 33,
+                "combination_key": "8GB-265GB",
+                "attributes": {
+                    "ram": "8GB",
+                    "storage": "265GB"
+                },
+                "display": "8GB • 265GB",
+                "price": 23000,
+                "discount_price": null,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+                "stock": 0,
+                "warehouse_stocks": [],
+                "room_stocks": [],
+                "cartoon_stocks": []
+            },
+            {
+                "id": 34,
+                "combination_key": "8GB-512GB",
+                "attributes": {
+                    "ram": "8GB",
+                    "storage": "512GB"
+                },
+                "display": "8GB • 512GB",
+                "price": 23000,
+                "discount_price": null,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+                "stock": 0,
+                "warehouse_stocks": [],
+                "room_stocks": [],
+                "cartoon_stocks": []
+            },
+            {
+                "id": 35,
+                "combination_key": "8GB-1TB",
+                "attributes": {
+                    "ram": "8GB",
+                    "storage": "1TB"
+                },
+                "display": "8GB • 1TB",
+                "price": 23000,
+                "discount_price": null,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+                "stock": 0,
+                "warehouse_stocks": [],
+                "room_stocks": [],
+                "cartoon_stocks": []
+            },
+            {
+                "id": 36,
+                "combination_key": "16GB-265GB",
+                "attributes": {
+                    "ram": "16GB",
+                    "storage": "265GB"
+                },
+                "display": "16GB • 265GB",
+                "price": 23000,
+                "discount_price": null,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+                "stock": 0,
+                "warehouse_stocks": [],
+                "room_stocks": [],
+                "cartoon_stocks": []
+            },
+            {
+                "id": 37,
+                "combination_key": "16GB-512GB",
+                "attributes": {
+                    "ram": "16GB",
+                    "storage": "512GB"
+                },
+                "display": "16GB • 512GB",
+                "price": 23000,
+                "discount_price": null,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+                "stock": 0,
+                "warehouse_stocks": [],
+                "room_stocks": [],
+                "cartoon_stocks": []
+            },
+            {
+                "id": 38,
+                "combination_key": "16GB-1TB",
+                "attributes": {
+                    "ram": "16GB",
+                    "storage": "1TB"
+                },
+                "display": "16GB • 1TB",
+                "price": 23000,
+                "discount_price": null,
+                "additional_price": 0,
+                "sku": null,
+                "image_url": "https://posftp.bme.com.bd/uploads/products/thumbnail/dzFHY4TjmF89IHPa44u5bQ0VHosdLhCERZ6yMefU.jpeg",
+                "stock": 0,
+                "warehouse_stocks": [],
+                "room_stocks": [],
+                "cartoon_stocks": []
+            }
+        ],
+        "legacy_variants": [],
+        "colors": [
+            "Green",
+            "yellow"
+        ],
+        "sizes": [
+            "L",
+            "M",
+            "S"
+        ],
+        "other_variants": [
+            {
+                "ram": [
+                    "4GB",
+                    "8GB",
+                    "16GB"
+                ]
+            },
+            {
+                "storage": [
+                    "265GB",
+                    "512GB",
+                    "1TB"
+                ]
+            }
+        ]
+    }
+}

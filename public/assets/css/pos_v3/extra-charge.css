@@ -1,0 +1,173 @@
+.pos-v3-extra-charge-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.pos-v3-extra-charge-check {
+    margin: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--pos-v3-text-muted);
+}
+
+.pos-v3-extra-charge-check input[type="checkbox"] {
+    accent-color: var(--pos-v3-accent);
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.pos-v3-extra-charge-manage-btn {
+    border: 1px solid var(--pos-v3-border);
+    background: #fff;
+    color: var(--pos-v3-accent);
+    border-radius: var(--pos-v3-radius-sm);
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.pos-v3-extra-charge-manage-btn:hover {
+    background: var(--pos-v3-accent-light);
+    border-color: var(--pos-v3-accent);
+}
+
+.pos-v3-extra-charge-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.pos-v3-extra-charge-modal {
+    width: min(760px, 96vw);
+    max-height: 90vh;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 30px rgba(15, 34, 58, 0.35);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pos-v3-extra-charge-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--pos-v3-border);
+}
+
+.pos-v3-extra-charge-modal-header h5 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.pos-v3-extra-charge-modal-close {
+    border: none;
+    background: transparent;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--pos-v3-text-muted);
+    cursor: pointer;
+}
+
+.pos-v3-extra-charge-modal-body {
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.pos-v3-extra-charge-modal-label {
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.pos-v3-extra-charge-modal-table-wrap {
+    margin-top: 14px;
+}
+
+.pos-v3-extra-charge-modal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.pos-v3-extra-charge-modal-table th,
+.pos-v3-extra-charge-modal-table td {
+    padding: 8px;
+    border: 1px solid var(--pos-v3-border);
+}
+
+.pos-v3-extra-charge-modal-table thead th {
+    background: #f9fafb;
+}
+
+.pos-v3-extra-charge-modal-create {
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid var(--pos-v3-border);
+    border-radius: 8px;
+    background: #f9fafb;
+}
+
+.pos-v3-extra-charge-modal-create-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pos-v3-text-muted);
+    margin-bottom: 8px;
+}
+
+.pos-v3-extra-charge-create-row {
+    display: flex;
+    gap: 8px;
+}
+
+.pos-v3-extra-charge-create-row input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--pos-v3-border);
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.pos-v3-extra-charge-create-row input.amount {
+    flex: 0 0 90px;
+    text-align: right;
+}
+
+.pos-v3-extra-charge-create-row button {
+    flex: 0 0 36px;
+    border: none;
+    border-radius: 6px;
+    background: var(--pos-v3-accent);
+    color: #fff;
+    cursor: pointer;
+}
+
+.pos-v3-extra-charge-modal-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--pos-v3-border);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.pos-v3-totals-input[readonly] {
+    background: #f9fafb;
+    color: var(--pos-v3-accent);
+    font-weight: 600;
+}

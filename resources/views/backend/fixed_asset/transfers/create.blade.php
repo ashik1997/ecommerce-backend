@@ -1,0 +1,8 @@
+@extends('backend.master')
+@section('page_title','Transfer Asset')
+@section('page_heading','Transfer Asset')
+@section('header_css')@include('backend.fixed_asset._style')@endsection
+@section('content')
+<div class="fa-page-wrap">
+    @include('backend.fixed_asset.partials.nav')<div class="card"><div class="card-body"><h4 class="fa-card-title mb-3">Transfer: {{ $asset->asset_code }} — {{ $asset->asset_name }}</h4><form method="post" action="{{ route('fixed-assets.transfers.store',$asset) }}">@csrf<input type="hidden" name="from_warehouse_id" value="{{ $asset->warehouse_id }}"><div class="row"><div class="col-md-4 mb-3"><label>From Warehouse</label><input class="form-control" value="{{ optional($asset->warehouse)->title }}" readonly></div><div class="col-md-4 mb-3"><label class="required">To Warehouse</label><select name="to_warehouse_id" class="form-control" required><option value="">Select</option>@foreach($warehouses as $w)<option value="{{ $w->id }}">{{ $w->title }}</option>@endforeach</select></div><div class="col-md-4 mb-3"><label class="required">Transfer Date</label><input type="date" name="transfer_date" value="{{ date('Y-m-d') }}" class="form-control" required></div><div class="col-md-4 mb-3"><label class="required">Dispatch Condition</label><select name="condition_at_dispatch" class="form-control" required>@foreach(['new','excellent','good','fair','poor','damaged','beyond_repair'] as $s)<option value="{{ $s }}" {{ $asset->condition_status==$s ? 'selected' : '' }}>{{ $s }}</option>@endforeach</select></div><div class="col-md-12 mb-3"><label>Note</label><textarea name="note" class="form-control"></textarea></div></div><button class="btn btn-fa-primary">Create Transfer</button></form></div></div></div>
+@endsection

@@ -1,0 +1,57 @@
+.pos-v3-delivery-info-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pos-v3-order-actions__delivery-toggle {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pos-v3-order-actions__delivery-toggle input[type="checkbox"] {
+    accent-color: var(--pos-v3-accent);
+}
+
+.pos-v3-delivery-info-wrapper {
+    border: 1px dashed #ced4da;
+    border-radius: var(--pos-v3-radius-sm);
+    padding: 10px;
+    background: #f8f9fa;
+}
+
+.pos-v3-delivery-info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pos-v3-delivery-info__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pos-v3-delivery-info__radios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+
+.pos-v3-delivery-info__radios label {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.pos-v3-delivery-info__radios input[type="radio"] {
+    accent-color: var(--pos-v3-accent);
+}

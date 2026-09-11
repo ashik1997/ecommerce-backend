@@ -1,0 +1,111 @@
+.pos-v3-order-actions {
+    border: 1px solid var(--pos-v3-border);
+    border-top: none;
+    border-radius: 0 0 var(--pos-v3-radius) var(--pos-v3-radius);
+    background: #fff;
+    box-shadow: var(--pos-v3-shadow);
+    padding: 12px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pos-v3-order-actions.is-loading {
+    opacity: 0.92;
+}
+
+.pos-v3-textarea {
+    width: 100%;
+    min-height: 64px;
+    padding: 8px 10px;
+    border: 1px solid var(--pos-v3-border);
+    border-radius: var(--pos-v3-radius-sm);
+    font-size: 13px;
+    resize: vertical;
+}
+
+.pos-v3-textarea:focus {
+    outline: none;
+    border-color: var(--pos-v3-accent);
+    box-shadow: 0 0 0 2px rgba(48, 142, 135, 0.15);
+}
+
+.pos-v3-order-actions__status {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pos-v3-order-actions__radios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+}
+
+.pos-v3-order-actions__radios label {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.pos-v3-order-actions__radios input[type="radio"] {
+    accent-color: var(--pos-v3-accent);
+}
+
+.pos-v3-order-actions__sms {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pos-v3-order-actions__sms input[type="checkbox"] {
+    accent-color: var(--pos-v3-accent);
+}
+
+.pos-v3-order-actions__delivery-toggle {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pos-v3-order-actions__delivery-toggle input[type="checkbox"] {
+    accent-color: var(--pos-v3-accent);
+}
+
+.pos-v3-order-actions__buttons {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 10px;
+}
+
+.pos-v3-btn--success {
+    background: #16a34a;
+    color: #fff;
+    border: none;
+}
+
+.pos-v3-btn--success:hover {
+    background: #15803d;
+}
+
+.pos-v3-btn--success:disabled,
+.pos-v3-btn--ghost:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.pos-v3-checkout-stack .pos-v3-payment-section {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}

@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      # mysql8 is a separate container; reach it via Docker network DNS.
+      DB_HOST: mysql8
+    volumes:
+      - .:/var/www/html
+    networks:
+      - default
+      - kik_default
+
+networks:
+  kik_default:
+    external: true

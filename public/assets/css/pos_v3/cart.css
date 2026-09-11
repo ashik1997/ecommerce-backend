@@ -1,0 +1,116 @@
+.pos-v3-cart-table-wrap {
+    overflow-x: auto;
+}
+
+.pos-v3-cart-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.pos-v3-cart-table th,
+.pos-v3-cart-table td {
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--pos-v3-border);
+    vertical-align: middle;
+}
+
+.pos-v3-cart-table thead th {
+    background: #f9fafb;
+    color: var(--pos-v3-text-muted);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.pos-v3-cart-table tfoot th {
+    background: var(--pos-v3-accent-soft);
+    color: var(--pos-v3-accent);
+}
+
+.pos-v3-cart-table__empty {
+    text-align: center;
+    color: var(--pos-v3-text-muted);
+    padding: 28px 12px !important;
+}
+
+.pos-v3-cart-input {
+    width: 72px;
+    padding: 5px 6px;
+    border: 1px solid var(--pos-v3-border);
+    border-radius: var(--pos-v3-radius-sm);
+    text-align: right;
+    font-size: 12px;
+}
+
+.pos-v3-cart-input:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+}
+
+.pos-v3-cart-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    min-width: 180px;
+}
+
+.pos-v3-cart-item__thumb {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    border-radius: var(--pos-v3-radius-sm);
+    border: 1px solid var(--pos-v3-border);
+    background: #fff;
+    flex-shrink: 0;
+}
+
+.pos-v3-cart-item__info {
+    min-width: 0;
+}
+
+.pos-v3-cart-item__title {
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+
+.pos-v3-cart-item__meta,
+.pos-v3-cart-item__unit {
+    font-size: 11px;
+    color: var(--pos-v3-text-muted);
+    margin-top: 2px;
+}
+
+.pos-v3-cart-item__unit {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 2px 6px;
+    border: 1px solid var(--pos-v3-border);
+    border-radius: 999px;
+}
+
+.pos-v3-cart-row__action {
+    width: 36px;
+    text-align: center;
+}
+
+.pos-v3-cart-remove {
+    border: none;
+    background: transparent;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 14px;
+}
+
+.pos-v3-left__main {
+    min-height: 520px;
+    max-height: calc(100vh - 155px);
+}
+
+.pos-v3-cart-placeholder {
+    display: none;
+}

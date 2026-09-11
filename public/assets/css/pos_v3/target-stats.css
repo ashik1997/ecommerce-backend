@@ -1,0 +1,87 @@
+.pos-v3-header__stats-row {
+    display: contents;
+}
+
+.pos-v3-target-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.pos-v3-target-stats__card {
+    border-radius: var(--pos-v3-radius-sm);
+    padding: 4px 8px;
+    min-width: 72px;
+    color: #fff;
+}
+
+.pos-v3-target-stats__card small {
+    display: block;
+    font-size: 10px;
+    opacity: 0.9;
+    line-height: 1.1;
+}
+
+.pos-v3-target-stats__card strong {
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.pos-v3-target-stats__card--target {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.pos-v3-target-stats__card--sales {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.pos-v3-target-stats__card--remains {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.pos-v3-target-stats__card--achieve {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: #1a1a1a;
+}
+
+.pos-v3-clock {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: stretch;
+    margin-left: auto;
+}
+
+.pos-v3-clock__card {
+    border: 1px solid var(--pos-v3-border);
+    border-radius: var(--pos-v3-radius-sm);
+    padding: 4px 8px;
+    min-width: 84px;
+    background: #f8fafc;
+}
+
+.pos-v3-clock__card small {
+    display: block;
+    font-size: 10px;
+    color: var(--pos-v3-text-muted);
+    line-height: 1.1;
+}
+
+.pos-v3-clock__card strong {
+    font-size: 11px;
+    color: var(--pos-v3-text);
+    line-height: 1.2;
+}
+
+.pos-v3-clock__card--hours {
+    background: #fff7ed;
+}
+
+@media (max-width: 900px) {
+    .pos-v3-clock {
+        margin-left: 0;
+        width: 100%;
+    }
+}

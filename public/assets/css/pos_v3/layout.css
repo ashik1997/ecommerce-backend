@@ -1,0 +1,95 @@
+body.pos-v3-active #page-topbar {
+    display: none !important;
+}
+
+body.pos-v3-active .page-content {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+body.pos-v3-active .page-content > .container-fluid {
+    padding-top: 8px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.pos-v3-page {
+    padding: 0;
+    max-width: none;
+    margin: 0;
+}
+
+.pos-v3-app {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: calc(100vh - 24px);
+}
+
+.pos-v3-main {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+}
+
+.pos-v3-left,
+.pos-v3-right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pos-v3-left {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 8px;
+}
+
+.pos-v3-right {
+    width: 380px;
+    flex-shrink: 0;
+    max-height: calc(100vh - 155px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(48, 142, 135, 0.55) rgba(48, 142, 135, 0.08);
+}
+
+.pos-v3-right::-webkit-scrollbar {
+    width: 6px;
+}
+
+.pos-v3-right::-webkit-scrollbar-track {
+    background: rgba(48, 142, 135, 0.08);
+    border-radius: 999px;
+}
+
+.pos-v3-right::-webkit-scrollbar-thumb {
+    background: rgba(48, 142, 135, 0.45);
+    border-radius: 999px;
+}
+
+.pos-v3-right::-webkit-scrollbar-thumb:hover {
+    background: rgba(48, 142, 135, 0.72);
+}
+
+.pos-v3-panel {
+    flex: 1;
+    min-height: 320px;
+}
+
+@media (max-width: 1200px) {
+    .pos-v3-main {
+        flex-direction: column;
+    }
+
+    .pos-v3-right {
+        width: 100%;
+    }
+}
+
+
+body:has(#pos-v3-app){
+
+}

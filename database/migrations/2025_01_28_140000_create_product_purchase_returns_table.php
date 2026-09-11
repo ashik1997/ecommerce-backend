@@ -1,0 +1,48 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+class CreateProductPurchaseReturnsTable extends Migration
+{
+    public function up()
+    {
+        Schema::create('product_purchase_returns', function (Blueprint $table) {
+            $table->id();
+
+            $table->unsignedBigInteger('product_website_id')->nullable();
+
+            $table->string('purchase_code', 45)->nullable();
+            $table->unsignedBigInteger('product_warehouse_id')->nullable();
+            $table->unsignedBigInteger('product_warehouse_room_id')->nullable();
+            $table->unsignedBigInteger('product_warehouse_room_cartoon_id')->nullable();
+            $table->unsignedBigInteger('product_supplier_id')->nullable();
+            $table->unsignedBigInteger('product_purchase_quotation_id')->nullable();
+            $table->date('date')->nullable();
+            $table->decimal('subtotal', 10, 2)->nullable();
+            $table->string('discount_type')->nullable();
+            $table->integer('discount_amount')->nullable();
+            $table->decimal('calculated_discount_amount', 6, 2)->nullable();
+            $table->enum('order_status', ['pending', 'received', 'returned'])->default('pending');
+            $table->text('other_charge_type')->nullable();
+            $table->decimal('other_charge_percentage', 6, 2)->nullable();
+            $table->decimal('other_charge_amount', 10, 2)->nullable();
+            $table->decimal('round_off', 10, 2)->nullable();
+            $table->decimal('total', 10, 2)->nullable();
+            $table->text('note')->nullable();
+            $table->string('code', 192)->nullable();
+            $table->string('reference', 192)->nullable();
+
+            $table->unsignedBigInteger('creator')->nullable();
+            $table->string('slug')->nullable();
+            $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->timestamps();
+        });
+    }
+
+    public function down()
+    {
+        Schema::dropIfExists('product_purchase_returns');
+    }
+}
